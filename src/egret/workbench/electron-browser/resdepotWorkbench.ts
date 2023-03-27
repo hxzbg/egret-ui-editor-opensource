@@ -15,7 +15,7 @@ import { IStorageService } from '../../platform/storage/common/storage';
 import { IFocusablePart, FocusablePartCommandHelper } from '../../platform/operations/common/operations';
 import { FileRootCommands } from '../parts/files/commands/fileRootCommands';
 import { IOperationBrowserService } from '../../platform/operations/common/operations-browser';
-import { SaveActiveOperation, SaveAllOperation } from '../parts/files/commands/fileRootOperations';
+import { ExportFGUIOperation, SaveActiveOperation, SaveAllOperation } from '../parts/files/commands/fileRootOperations';
 import { WorkbenchEditorService } from '../services/editor/common/editorService';
 import { IWorkbenchEditorService } from '../services/editor/common/ediors';
 import { ClosableTitleRenderFactory, DocumentPanelSerialize } from './boxlayoutRender';
@@ -105,6 +105,7 @@ export class ResdepotWorkbench implements IFocusablePart {
 	/** 注册当前编辑器可以执行的命令 */
 	private initCommands(): void {
 		//文件根命令
+		this.focusablePartCommandHelper.registerCommand(FileRootCommands.EXPORT_FGUI, ExportFGUIOperation);
 		this.focusablePartCommandHelper.registerCommand(FileRootCommands.SAVE_ACTIVE, SaveActiveOperation);
 		this.focusablePartCommandHelper.registerCommand(FileRootCommands.SAVE_ALL, SaveAllOperation);
 

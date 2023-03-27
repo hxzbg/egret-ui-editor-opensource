@@ -301,6 +301,7 @@ export class ExmlTreeParser {
 	private addAttribsToEObject(eObject: EObject, xml: sax.Tag): void {
 		const className: string = this.getExmlConfig().getClassNameById(xml.localName, new Namespace(xml.prefix, xml.namespace));
 		let eValue: EValue;
+		let hasMutipleStates = false;
 		for (let i = 0; i < xml.attributeNodes.length; i++) {
 			const attrib: sax.Attribute = xml.attributeNodes[i];
 			const localName: string = attrib.name;
@@ -314,6 +315,7 @@ export class ExmlTreeParser {
 			}
 			const state: string = this.getState(localName);
 			if (state && state !== this.currentState) {
+				hasMutipleStates = true;
 				continue;
 			}
 			let value: string = trim(attribValue);
@@ -349,6 +351,7 @@ export class ExmlTreeParser {
 			eValue._readOnly = eObject.inMutipleStates && localName.indexOf('.') === -1;
 			eObject.setProperty(prop, eValue);
 		}
+		eObject.set_hasMutipleStates(hasMutipleStates);
 	}
 	/**
 	 * 添加Wing节点属性
@@ -615,6 +618,7 @@ export class ExmlTreeParser {
 		else {
 			eObject = new EObject(name, ns, instance);
 		}
+		eObject.setXml(xml);
 		eObject.setExmlModel(this.exmlModel);
 		return eObject;
 	}
@@ -1254,6 +1258,7 @@ export class ExmlModel implements IExmlModel {
 			return Promise.resolve(void 0);
 		}
 		return this.getExmlConfig().ensureLoaded().then(() => {
+			//读exml文件
 			var xml: sax.Tag = null;
 			if (this.getText()) {
 				xml = xmlTagUtil.parse(this.getText(), false, true);

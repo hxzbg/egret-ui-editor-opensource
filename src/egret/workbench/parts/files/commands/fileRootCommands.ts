@@ -20,6 +20,8 @@ export enum FileRootCommands {
 	SAVE_ALL = 'saveAll',
 	/** 重新加载 */
 	RELOAD = 'reload',
-	/** 重新加载 */
+	/**导出为FGUI*/
+	EXPORT_FGUI = "export_fgui",
+	/** 安装命令 */
 	INSTALL_SHELL_COMMAND = 'installShellCommand'
 }

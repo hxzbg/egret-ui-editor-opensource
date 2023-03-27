@@ -12,6 +12,7 @@ import { IWindowClientService } from 'egret/platform/windows/common/window';
 import { localize } from 'egret/base/localization/nls';
 import { getConfirmMessage } from 'egret/platform/dialogs/common/dialogs';
 import { MessageBoxOptions } from 'egret/platform/windows/common/windows';
+import { FGUI } from 'egret/workbench/services/editor/transverter/FGUI';
 //TODO 这个类还很不完善
 
 /**
@@ -91,12 +92,19 @@ export class FileModelService implements IFileModelService {
 		return false;
 	}
 
+	public export(resources?: URI[], format?: string): Promise<void> {
+		switch(format) {
+			case "fgui":
+				return new FGUI().export(this._modelManager, resources);
+		}
+	}
+
 	/**
 	 * 保存指定的文件
 	 * @param resource 
 	 */
 	public save(resource: URI): Promise<boolean> {
-		return this.saveAll([resource]).then(results => results.length === 1 && results[0].success);
+		return this.saveAll([resource]).then(results => {return results.length === 1 && results[0].success});
 	}
 	/**
 	 * 另存为指定的文件

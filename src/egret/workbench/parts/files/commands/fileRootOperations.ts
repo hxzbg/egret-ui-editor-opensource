@@ -439,6 +439,33 @@ export class RenameFileOperation implements IOperation {
 	}
 }
 
+export class ExportFGUIOperation implements IOperation {
+	constructor(
+		@IFileModelService private fileModelService: IFileModelService,
+		@IWorkbenchEditorService private editorService: IWorkbenchEditorService
+	) {
+	}
+	/**
+	 * 运行
+	 */
+	public async run(): Promise<any> {
+		const currentEditor = this.editorService.getActiveEditor();
+		if (currentEditor && currentEditor.input) {
+			if ('syncModelData' in currentEditor) {
+				await (currentEditor as IMultiPageEditor).syncModelData();
+			}
+			return this.fileModelService.export(null, "fgui");
+		}
+		return Promise.resolve(void 0);
+	}
+	/**
+	 * 释放
+	 */
+	public dispose(): void {
+		this.fileModelService = null;
+		this.editorService = null;
+	}
+}
 
 /**
  * 保存当前文件

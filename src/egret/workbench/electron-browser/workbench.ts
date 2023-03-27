@@ -28,7 +28,7 @@ import { IFocusablePart, FocusablePartCommandHelper, KeybindingType } from '../.
 import { RootCommands } from './commands/rootCommands';
 import { OpenFolderOperation, PromptAboutOperation, WingPropertyOperation, KeybindingSettingOperation, CheckUpdateOperation, FeedbackOperation, PrompQuickOpenOperation, CloseCurrentOperation, ReportIssueOperation } from './commands/rootOperations';
 import { FileRootCommands } from '../parts/files/commands/fileRootCommands';
-import { NewExmlOperation, RevealFileInOsOperation, DeleteFileOperation, NewFolderOperation, CopyFilePathOperation, RenameFileOperation, SaveActiveOperation, SaveAllOperation, InstallShellCommandOperation } from '../parts/files/commands/fileRootOperations';
+import { NewExmlOperation, RevealFileInOsOperation, DeleteFileOperation, NewFolderOperation, CopyFilePathOperation, RenameFileOperation, ExportFGUIOperation, SaveActiveOperation, SaveAllOperation, InstallShellCommandOperation } from '../parts/files/commands/fileRootOperations';
 import { IOperationBrowserService } from '../../platform/operations/common/operations-browser';
 import { SystemCommands } from 'egret/platform/operations/commands/systemCommands';
 import { PanelDom } from '../../parts/browser/panelDom';
@@ -173,6 +173,7 @@ export class Workbench implements IFocusablePart {
 		this.focusablePartCommandHelper.registerCommand(FileRootCommands.NEW_FOLDER, NewFolderOperation);
 		this.focusablePartCommandHelper.registerCommand(FileRootCommands.COPY_FILE_PATH, CopyFilePathOperation);
 		this.focusablePartCommandHelper.registerCommand(FileRootCommands.RENAME_FILE, RenameFileOperation);
+		this.focusablePartCommandHelper.registerCommand(FileRootCommands.EXPORT_FGUI, ExportFGUIOperation);
 		this.focusablePartCommandHelper.registerCommand(FileRootCommands.SAVE_ACTIVE, SaveActiveOperation);
 		this.focusablePartCommandHelper.registerCommand(FileRootCommands.SAVE_ALL, SaveAllOperation);
 		this.focusablePartCommandHelper.registerCommand(FileRootCommands.INSTALL_SHELL_COMMAND, InstallShellCommandOperation);

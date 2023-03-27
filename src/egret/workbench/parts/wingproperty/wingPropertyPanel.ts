@@ -40,6 +40,9 @@ export class WingPropertyPanel extends InnerBtnWindow {
 	private resListContainer: HTMLElement;
 	private resDomItems: { group: AttributeItemGroup; button: IconButton; }[] = [];
 
+	private fguiInput: TextInput;
+	private fguiBtn:SystemButton;
+
 	private themeInput: TextInput;
 	private themeBtn: SystemButton;
 
@@ -173,6 +176,15 @@ export class WingPropertyPanel extends InnerBtnWindow {
 		this.skinListContainer = document.createElement('div');
 		this.container.appendChild(this.skinListContainer);
 
+		const theFGUIRootContainer = new AttributeItemGroup(contentGroup);
+		theFGUIRootContainer.additionalVisible = true;
+		theFGUIRootContainer.style.marginTop = '15px';
+		theFGUIRootContainer.label = "FGUI:";
+		this.fguiInput = new TextInput(theFGUIRootContainer.getElement());
+		this.fguiInput.readonly = true;
+		this.fguiInput.prompt = localize('wingPropertyPanel.render.selectFGUIRoot', 'Select FGUI root path');
+		this.fguiBtn = new SystemButton(theFGUIRootContainer.getAdditionalElement());
+		this.fguiBtn.label = localize('wingPropertyPanel.render.browse', 'Browse');
 
 		this.addBtnListener();
 		this.init();
@@ -192,9 +204,25 @@ export class WingPropertyPanel extends InnerBtnWindow {
 	}
 
 	private addBtnListener(): void {
+		this.disposables.push(this.fguiBtn.onClick(this.fguiClick.bind(this)));
 		this.disposables.push(this.themeBtn.onClick(this.themeClick.bind(this)));
 		this.disposables.push(this.resBtn.onClick(this.resClick.bind(this)));
 		this.disposables.push(this.skinBtn.onClick(this.skinClick.bind(this)));
+	}
+
+	private fguiClick(e): void {
+		remote.dialog.showOpenDialog(remote.getCurrentWindow(), {
+			defaultPath: this.projectModel.project ? this.projectModel.project.fsPath : '',
+			properties: ['openDirectory']
+		}).then((value) => {
+			const filePaths = value.filePaths;
+			if (filePaths) {
+				if (filePaths.length === 1) {
+					this.fguiInput.text = filePaths[0];
+					this.cloneWingProperty.fgui = filePaths[0];
+				}
+			}
+		});
 	}
 
 	private themeClick(e): void {
@@ -305,6 +333,10 @@ export class WingPropertyPanel extends InnerBtnWindow {
 		}
 		if (this.cloneWingProperty.theme) {
 			this.themeInput.text = this.cloneWingProperty.theme;
+		}
+
+		if(this.cloneWingProperty.fgui) {
+			this.fguiInput.text = this.cloneWingProperty.fgui;
 		}
 
 		this.cloneWingProperty.resourcePlugin.configs.forEach((v, index) => {

@@ -173,6 +173,14 @@ export class EValue extends HashObject implements IValue {
 		this._exmlModel = value;
 	}
 
+	private _xml:sax.Tag;
+	public getXml() : sax.Tag {
+		return this._xml;
+	}
+	public setXml(value: sax.Tag): void {
+		this._xml = value;
+	}
+
 	private _id: string = '';
 	/**
 	 * 节点id
@@ -399,6 +407,15 @@ export class EArray extends EValue implements IArray {
 	 * 此节点是否存在于多个状态
 	 */
 	public inMutipleStates: boolean = false;
+
+	protected _hasMutipleStates: boolean = false;
+	public set_hasMutipleStates(value:boolean) {
+		this._hasMutipleStates = value;
+	}
+	public hasMutipleStates() : boolean {
+		return this._hasMutipleStates;
+	}
+
 	/**
 	 * 是否存在对应的xml节点,默认true。
 	 */
@@ -1041,6 +1058,14 @@ export class EObject extends EValue implements IObject {
 
 	public toString(): string {
 		return '';
+	}
+
+	protected _hasMutipleStates: boolean = false;
+	public set_hasMutipleStates(value:boolean) {
+		this._hasMutipleStates = value;
+	}
+	public hasMutipleStates() : boolean {
+		return this._hasMutipleStates;
 	}
 
 	//=======================setProperty()的便利方法=====================

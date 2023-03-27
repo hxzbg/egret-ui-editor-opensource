@@ -1231,6 +1231,10 @@
 		"s": "Reload(&&R)",
 		"t": "Reload(&&R)"
 	},
+	"menus.setFileMenu.export_fgui": {
+		"s": "Export To FGUI",
+		"t": "Export To FGUI"
+	},
 	"menus.setFileMenu.installShellCommand": {
 		"s": "Install shell command",
 		"t": "Install shell command"
@@ -2266,6 +2270,10 @@
 	"wingPropertyPanel.render.selectSkinRoot": {
 		"s": "Select Add skins root path",
 		"t": "Select Add skins root path"
+	},
+	"wingPropertyPanel.render.selectFGUIRoot": {
+		"s": "Select FGUI root path",
+		"t": "Select FGUI root path"
 	},
 	"wingPropertyPanel.render.topic": {
 		"s": "Theme:",

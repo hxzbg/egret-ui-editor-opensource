@@ -216,14 +216,15 @@ export class AppMenu extends MenuBase {
 		const createFolder = this.createMenuItem(mnemonicMenuLabel(localize('menus.setFileMenu.newFolder', 'Create Folder(&&F)')), 'Shift+CmdOrCtrl+N', FileRootCommands.NEW_FOLDER, localize('menus.setFileMenu.newFolderTxt', 'Create Folder'), localize('menus.setFileMenu.newFolderOpt', 'Create a folder in the currently selected directory'));
 		const createExml = this.createMenuItem(mnemonicMenuLabel(localize('menus.setFileMenu.newExml', 'Create EXML Skin(&&N)')), 'CmdOrCtrl+N', FileRootCommands.NEW_EXML_FILE, localize('menus.setFileMenu.newExmlTxt', 'Create EXML Skin'), localize('menus.setFileMenu.newExmlOpt', 'Create a new Exml skin in the currently selected directory'));
 
+		const export_fgui = this.createMenuItem(mnemonicMenuLabel(localize('menus.setFileMenu.export_fgui', 'Export To FGUI')), '', FileRootCommands.EXPORT_FGUI, null, null);
+
 		const save = this.createMenuItem(mnemonicMenuLabel(localize('menus.setFileMenu.save', 'Save(&&S)')), 'CmdOrCtrl+S', FileRootCommands.SAVE_ACTIVE, localize('menus.setFileMenu.saveTxt', 'Save'), localize('menus.setFileMenu.saveOpt', 'Save the current editor'));
 		const saveAll = this.createMenuItem(mnemonicMenuLabel(localize('menus.setFileMenu.allSave', 'Save All(&&L)')), 'Alt+CmdOrCtrl+S', FileRootCommands.SAVE_ALL, localize('menus.setFileMenu.allSaveTxt', 'Save All'), localize('menus.setFileMenu.allSaveOpt', 'Save all open editors'));
 
 		const closeCurrent = this.createMenuItem(mnemonicMenuLabel(localize('menus.setFileMenu.closeEditor', 'Close Editor(&&C)')), 'CmdOrCtrl+W', RootCommands.CLOSE_CURRENT, localize('menus.setFileMenu.closeEditorTxt', 'Close Editor'), localize('menus.setFileMenu.closeEditorOpt', 'Close the current editor'));
 
 		const reload = this.createMenuItem(mnemonicMenuLabel(localize('menus.setFileMenu.reload', 'Reload(&&R)')), '', FileRootCommands.RELOAD, null, null);
-		const memus = [open, newWindow, __separator__(), createFolder, createExml, __separator__(), save, saveAll, __separator__(), closeCurrent, __separator__(), reload];
-
+		const memus = [open, newWindow, __separator__(), createFolder, createExml, __separator__(), export_fgui, __separator__(), save, saveAll, __separator__(), closeCurrent, __separator__(), reload];
 
 		if (isMacintosh) {
 			const installShellCommand = this.createMenuItem(mnemonicMenuLabel(localize('menus.setFileMenu.installShellCommand', 'Install shell command')), '', FileRootCommands.INSTALL_SHELL_COMMAND, null, null);
