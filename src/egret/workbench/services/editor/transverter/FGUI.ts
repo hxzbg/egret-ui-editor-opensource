@@ -13,14 +13,15 @@ import { ExmlModel } from 'egret/exts/exml-exts/exml/common/exml/exmlModel';
 import { IEgretProjectService } from 'egret/exts/exml-exts/project';
 import { EgretProjectModel } from 'egret/exts/exml-exts/exml/common/project/egretProject';
 import { InstantiationService } from 'egret/platform/instantiation/common/instantiationService';
+import { ResUtil } from 'egret/exts/resdepot/common/utils/ResUtil';
 
 /**
  * fgui服务
  */
 export class FGUI {
 	protected _groups = {};
+	protected _states = null;
 	protected _current_group = "";
-	protected _current_status = "";
 	protected _current_comment_name:string = null;
 	protected _attributes_processor = {
 		id:function(fgui:FGUI, node: ENode, state:string) : string {
@@ -265,6 +266,9 @@ export class FGUI {
 			}
 			return "";
 		},
+		grayed:function(fgui:FGUI, node: ENode, state:string) : string {
+			return "";
+		},
 	};
 	protected _processor = {
 		//自定义预制件
@@ -273,7 +277,7 @@ export class FGUI {
 				name_fix:"component",
 				post_processor:function(fgui:FGUI, space:string, node: ENode, state:string) : string {
 					let content = "";
-					let status = fgui.build_status_component(space, node);
+					let status = fgui.build_gear_content(space, node);
 					if(status) {
 						return content.concat(">\n", status, "</component>\n");
 					}
@@ -285,15 +289,24 @@ export class FGUI {
 		default:{
 			Skin:{
 				name_fix:"component",
+				pre_processor:function(fgui:FGUI, space:string, node: ENode, state:string) : string {
+					if(!node.getParent()) {
+						fgui._states = {};
+						let states = fgui.get_property(node, "states", "string", "");
+						if(states) {
+							fgui._states["default"] = states.split(",");
+						}
+					}
+					return "";
+				},
 				post_processor:function(fgui:FGUI, space:string, node: ENode, state:string) : string {
 					let content = ">\n";
 					//控制器
-					const states = (fgui._fileEditorModel.getModel() as ExmlModel).getStates();
-					if(states && states.length > 0) {
-						content = content.concat("\t", `<controller name="controllers" pages="`);
-						for (let index = 0; index < states.length; index++) {
-							const element = states[index];
-							content = content.concat(index.toString(), ",", element, ",");
+					for (const key in fgui._states) {
+						content = content.concat("\t", `<controller name="`, key, `" pages="`);
+						let states = fgui._states[key];
+						for(let index = 0; index < states.length; index++) {
+							content = content.concat((index + 1).toString(), ",", states[index], ",");
 						}
 						content = content.substring(0, content.length - 1);
 						content = content.concat(`" selected="0"/>\n`);
@@ -383,10 +396,10 @@ export class FGUI {
 
 				post_processor:function(fgui:FGUI, space:string, node: ENode, state:string) : string {
 					let content = "";
-					let status = fgui.build_status_component(space, node);
+					let status = fgui.build_gear_content(space, node);
 					if(fgui.get_child_count(node) < 1) {
 						if(status) {
-							content = content.concat(">\n", status, "</", fgui._current_comment_name, ">\n");
+							content = content.concat(">\n", status, space, "</", fgui._current_comment_name, ">\n");
 						}else{
 							content = content.concat("/>\n");
 						}
@@ -422,13 +435,19 @@ export class FGUI {
 		},
 	};
 	
-	protected get_property(node:ENode, key: string, type:string, state:string) : any {
-		if(state) {
-			key = key.concat(".", state);
-		}
-
+	protected get_property_string(node:ENode, key: string, type:string, state:string) : any {
 		let tag = node.getXml();
-		let attribute = tag.attributes[key];
+		if(state) {
+			let attribute = tag.attributes[key.concat(".", state)];
+			if(attribute) {
+				return attribute;
+			}
+		}
+		return tag.attributes[key];
+	}
+
+	protected get_property(node:ENode, key: string, type:string, state:string) : any {
+		let attribute = this.get_property_string(node, key, type, state);
 		if(attribute) {
 			if(attribute.endsWith("%")) {
 				let parent = node.getParent();
@@ -458,9 +477,84 @@ export class FGUI {
 		return this._property_formater[type](attribute);
 	}
 
-	protected build_status_component(space, node: ENode) : string {
-		let result = "";
-		return result;
+	protected _gear_config = {
+		gearXY:{params:["xy"],default:["0,0"]},
+		gearSize:{params:["size","scale"], default:["0,0","1,1"]},
+		gearColor:{params:["color"], default:["#ffffff"]},
+		gearLook:{params:["alpha","rotation","grayed","touchable"], default:["1","0","0","0"]},
+	};
+
+	protected build_gear_content(space, node: ENode) : string {
+		let controllers = this._states["default"]
+		if(!controllers || controllers.length <= 0) {
+			return "";
+		}
+
+		let includeIn = this.get_property(node, "includeIn", "string", null);
+		if(!node.hasMutipleStates() && !includeIn) {
+			return "";
+		}
+
+		let content = "";
+		space = space.concat("\t");
+		//添加 gearDisplay
+		if(includeIn) {
+			let gearDisplay = includeIn.split(',');
+			content = content.concat(space, `<gearDisplay controller="default" pages="`);
+			for(let index = 0; index < gearDisplay.length; index ++) {
+				content = content.concat(controllers.indexOf(gearDisplay[index]) + 1, ",");
+			}
+			content = content.substring(0, content.length - 1);
+			content = content.concat(`"/>\n`);
+		}
+
+		//添加其它属性
+		let gear_amount = {};
+		for (const gear in this._gear_config) {
+			let config = this._gear_config[gear];
+			let params = config.params;
+			let default_value = "";
+			for(let index = 0; index < params.length; index++) {
+				let value = this._attributes_processor[params[index]](this, node, "");
+				value = value ? value : config.default[index];
+				default_value = default_value.concat(value, ",");
+			}
+
+			for (const state in this._states) {
+				let pages = "";
+				let values = "";
+				controllers = this._states[state];
+				for(let stateid = 0; stateid < controllers.length; stateid ++) {
+					let values_state = "";
+					let state_chunk = controllers[stateid];
+					for(let index = 0; index < params.length; index++) {
+						let value = this._attributes_processor[params[index]](this, node, state_chunk);
+						value = value ? value : config.default[index];
+						values_state = values_state.concat(value, ",");
+					}
+
+					if(values_state != default_value) {
+						values_state = values_state.substring(0, values_state.length - 1);
+
+						values = values.concat(values_state, "|");
+						pages = pages.concat((stateid + 1).toString(), ",");
+					}
+				}
+
+				if(values) {
+					let amount = gear_amount[gear];
+					if(!amount) {
+						amount = 0;
+					}
+					gear_amount[gear] = amount + 1;
+					pages = pages.substring(0, pages.length - 1);
+					values = values.substring(0, values.length - 1);
+					default_value = default_value.substring(0, default_value.length - 1);
+					content = content.concat(space,`<`, gear, amount > 0 ? amount : "", ` controller="`, state, `" pages="`,pages, `" values="`, values, `" default="`, default_value, `"/>\n`);
+				}
+			}
+		}
+		return content;
 	}
 
 	protected process_collection(space:string, node: ENode, tag:sax.Tag) : string {
@@ -826,7 +920,7 @@ export class FGUI {
 					comment_name = name_fix;
 				}else if(name_fix[name]){
 					comment_name = name_fix[name];
-				}			
+				}
 			}
 
 			if(comment_name) {
