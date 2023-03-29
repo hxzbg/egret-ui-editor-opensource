@@ -5,15 +5,10 @@ import URI from 'egret/base/common/uri';
 import * as sax from 'egret/exts/exml-exts/exml/common/sax/sax';
 import * as xmlTagUtil from 'egret/exts/exml-exts/exml/common/sax/xml-tagUtils';
 import * as xmlStrUtil from 'egret/exts/exml-exts/exml/common/sax/xml-strUtils';
-import { isInstanceof, IObject } from 'egret/exts/exml-exts/exml/common/exml/treeNodes';
 import { FileEditorModelManager } from 'egret/workbench/services/editor/common/modelManager';
 import { EValue, ENode, ELink, EObject, EContainer, EArray, ESize, EScale9Grid, EClass, EViewStack, EScroller } from 'egret/exts/exml-exts/exml/common/exml/treeNodesImpls';
 import { IFileEditorModel, IInnerModel } from 'egret/editor/core/models';
 import { ExmlModel } from 'egret/exts/exml-exts/exml/common/exml/exmlModel';
-import { IEgretProjectService } from 'egret/exts/exml-exts/project';
-import { EgretProjectModel } from 'egret/exts/exml-exts/exml/common/project/egretProject';
-import { InstantiationService } from 'egret/platform/instantiation/common/instantiationService';
-import { ResUtil } from 'egret/exts/resdepot/common/utils/ResUtil';
 
 /**
  * fgui服务
@@ -581,22 +576,10 @@ export class FGUI {
 	}
 
 	protected process_list(space:string, node: ENode, tag:sax.Tag, state:string) : string {
-		let property_add = "";
-		let children = tag.children;
-		let itemRendererSkinName = tag.attributes["itemRendererSkinName"];
-		if(itemRendererSkinName) {
-			if(itemRendererSkinName.indexOf("skins.") == 0) {
-				itemRendererSkinName = itemRendererSkinName.substring(6);
-			}
-			let package_data = this.find_package(itemRendererSkinName, "component");
-			if(package_data) {
-				property_add = this.build_property_xml("defaultItem", `ui://`.concat(package_data.id, "/", itemRendererSkinName));
-			}else{
-				property_add = this.build_property_xml("defaultItem", itemRendererSkinName);
-			}
-		}
+		let property_add = this.build_property_xml("defaultItem", this.transform_skin_url(tag.attributes["itemRendererSkinName"]));
 
 		let list_content = "";
+		let children = tag.children;
 		if(children) {
 			children.forEach(child => {
 				switch(child.localName) {
@@ -625,7 +608,39 @@ export class FGUI {
 	}
 
 	protected process_tabbar(space:string, node: ENode, tag:sax.Tag, state:string) : string {
-		return "";
+		let content = "";
+		content = content.concat(">\n", space, "</list>\n");
+		return content;
+	}
+
+	protected transform_skin_name(skin:string) : string {
+		if(skin) {
+			if(skin.startsWith("skins.")) {
+				skin = skin.substring(6);
+			}
+			let url:URI = this._exmlConfig.getExmlUri(skin);
+			if(!url) {
+				url = this._exmlConfig.getExmlUri("skins." + skin);
+			}
+			if(!url) {
+				url = this._exmlConfig.getExmlUri("skins." + skin + "Skin");
+			}
+			if(url){
+				let basename = path.basename(url.path);
+				let lastindex = basename.lastIndexOf('.');
+				if(lastindex > 0) {
+					basename = basename.substring(0, lastindex);
+				}
+				skin = basename;
+			}
+		}
+		return skin;
+	}
+
+	protected transform_skin_url(skin:string) : string {
+		skin = this.transform_skin_name(skin);
+		let package_data = this.find_package(skin, "component");
+		return package_data ? `ui://`.concat(package_data.id, "/", skin) : skin;
 	}
 
 	protected transform_color(node: ENode, para:Object, state:string) : string {
@@ -659,8 +674,11 @@ export class FGUI {
 			}
 			return key;
 		}else if(node.getNs().prefix == "ns1") {
-			let key = node.getName();
-			let package_data = this.find_package(key, "component");
+			let skinName = this.get_property(node, "skinName", "string", state);
+			if(!skinName) {
+				skinName = node.getName();
+			}
+			let package_data = this.find_package(this.transform_skin_name(skinName), "component");
 			return package_data ? package_data.id : null;
 		}
 		return null;
@@ -676,9 +694,13 @@ export class FGUI {
 			}
 			return key;
 		}else if(node.getNs().prefix == "ns1") {
-			let key = node.getName();
-			let package_data = this.find_package(key, "component");
-			return package_data ? package_data.component[key].src : null;
+			let skinName = this.get_property(node, "skinName", "string", state);
+			if(!skinName) {
+				skinName = node.getName();
+			}
+			skinName = this.transform_skin_name(skinName);
+			let package_data = this.find_package(skinName, "component");
+			return package_data ? package_data.component[skinName].src : null;
 		}
 		return null;
 	}
@@ -693,14 +715,19 @@ export class FGUI {
 			}
 			return key;
 		}else if(node.getNs().prefix == "ns1") {
-			let key = node.getName();
-			let package_data = this.find_package(key, "component");
-			return package_data ? package_data.component[key].fileName : null;
+			let skinName = this.get_property(node, "skinName", "string", state);
+			if(!skinName) {
+				skinName = node.getName();
+			}
+			skinName = this.transform_skin_name(skinName);
+			let package_data = this.find_package(skinName, "component");
+			return package_data ? package_data.component[skinName].fileName : null;
 		}
 		return null;
 	}
 
 	private _packages = null;
+	private _exmlConfig = null;
 	private _save_dir:string = null;
 	private _fileEditorModel: IFileEditorModel = null;
 	constructor() {
@@ -841,8 +868,10 @@ export class FGUI {
 		}
 		
 		if(!this._packages) {
-			let egretProject = fileModel["egretProjectService"].projectModel;
-			let wingProperties = egretProject.getWingProperties();
+			const egretProjectService = fileModel["egretProjectService"];
+			const egretProject = egretProjectService.projectModel;
+			this._exmlConfig = egretProjectService.exmlConfig;
+			const wingProperties = egretProject.getWingProperties();
 			if(!wingProperties.fgui) {
 				return;
 			}
