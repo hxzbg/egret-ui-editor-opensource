@@ -58,6 +58,9 @@ export class FGUI {
 			return "";
 		},
 		color:function(fgui:FGUI, node: ENode, state:string) : string {
+			if(node.getName() == "BitmapLabel") {
+				return "#ffffff";
+			}
 			return fgui.transform_color(node,{
 				Label:"textColor",
 			}, state);
@@ -131,6 +134,10 @@ export class FGUI {
 			return fgui.get_property(node, "stroke", "int", state);
 		},
 		font:function(fgui:FGUI, node: ENode, state:string) : string {
+			if(node.getName() == "BitmapLabel") {
+				let font = fgui.get_property(node, "font", "string", state);
+				return fgui.transform_url(font, "font");
+			}
 			return fgui.get_property(node, "fontFamily", "string", state);
 		},
 		textAlign:function(fgui:FGUI, node: ENode, state:string) : string {
@@ -387,6 +394,7 @@ export class FGUI {
 					Rect:"graph",
 					CheckBox:"Button",
 					RadioButton:"Button",
+					BitmapLabel:"text",
 				},
 
 				post_processor:function(fgui:FGUI, space:string, node: ENode, state:string) : string {
@@ -443,31 +451,25 @@ export class FGUI {
 
 	protected get_property(node:ENode, key: string, type:string, state:string) : any {
 		let attribute = this.get_property_string(node, key, type, state);
-		if(attribute) {
-			if(attribute.endsWith("%")) {
-				let parent = node.getParent();
-				if(parent) {
-					let value = parent.getInstance()[key];
+		switch(key) {
+			case "width":
+			case "height": {
+				if(node.getName() == "Image") {
+					let value = node.getInstance()[key];
 					if(value) {
-						value = Number.parseFloat(attribute) * 0.01 * value;
 						attribute = value.toString();
 					}
 				}
 			}
-		}else{
-			switch(key) {
-				case "width":
-				case "height":
-					{
-						if(node.getName() == "Image") {
-							let value = node.getInstance()[key];
-							if(value) {
-								attribute = value.toString();
-							}
-						}
-					}
-					break;
+			break;
+			case "x":
+			case "y": {
+				let value = node.getInstance()[key];
+				if(value) {
+					attribute = value.toString();
+				}
 			}
+			break;
 		}
 		return this._property_formater[type](attribute);
 	}
@@ -576,7 +578,7 @@ export class FGUI {
 	}
 
 	protected process_list(space:string, node: ENode, tag:sax.Tag, state:string) : string {
-		let property_add = this.build_property_xml("defaultItem", this.transform_skin_url(tag.attributes["itemRendererSkinName"]));
+		let property_add = this.build_property_xml("defaultItem", this.transform_url(tag.attributes["itemRendererSkinName"], "component"));
 
 		let list_content = "";
 		let children = tag.children;
@@ -637,10 +639,10 @@ export class FGUI {
 		return skin;
 	}
 
-	protected transform_skin_url(skin:string) : string {
-		skin = this.transform_skin_name(skin);
-		let package_data = this.find_package(skin, "component");
-		return package_data ? `ui://`.concat(package_data.id, "/", skin) : skin;
+	protected transform_url(resname:string, type:string) : string {
+		resname = this.transform_skin_name(resname);
+		let package_data = this.find_package(resname, type);
+		return package_data ? `ui://`.concat(package_data.id, package_data[type][resname].src) : resname;
 	}
 
 	protected transform_color(node: ENode, para:Object, state:string) : string {
@@ -771,6 +773,7 @@ export class FGUI {
 
 		let package_data = {
 			id:packageid,
+			font:{},
 			image:{},
 			component:{},
 			filepath:filepath,
@@ -790,6 +793,16 @@ export class FGUI {
 							let name = attributes["name"];
 							let path = attributes["path"];
 							switch(element.name) {
+								case "font": {
+									let font = {
+										src:id,
+										xml:element,
+										fileName:path.concat(name),
+									};
+									let key = name.replace('.', '_');
+									package_data.font[key] = font;
+								}
+								break;
 								case "image": {
 									let image = {
 										src:id,
