@@ -213,7 +213,10 @@ export class WingPropertyPanel extends InnerBtnWindow {
 	private fguiClick(e): void {
 		remote.dialog.showOpenDialog(remote.getCurrentWindow(), {
 			defaultPath: this.projectModel.project ? this.projectModel.project.fsPath : '',
-			properties: ['openDirectory']
+			properties: ['openFile'], filters: [{
+				name: 'FGUIProject',
+				extensions: ['fairy']
+			}]
 		}).then((value) => {
 			const filePaths = value.filePaths;
 			if (filePaths) {

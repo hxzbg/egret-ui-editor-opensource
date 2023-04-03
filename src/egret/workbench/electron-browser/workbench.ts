@@ -26,9 +26,9 @@ import { IWorkspaceService } from 'egret/platform/workspace/common/workspace';
 import { IStorageService, StorageScope } from '../../platform/storage/common/storage';
 import { IFocusablePart, FocusablePartCommandHelper, KeybindingType } from '../../platform/operations/common/operations';
 import { RootCommands } from './commands/rootCommands';
-import { OpenFolderOperation, PromptAboutOperation, WingPropertyOperation, KeybindingSettingOperation, CheckUpdateOperation, FeedbackOperation, PrompQuickOpenOperation, CloseCurrentOperation, ReportIssueOperation } from './commands/rootOperations';
+import { ExportFGUIOperation, ExportFGUIBatchOperation, OpenFolderOperation, PromptAboutOperation, WingPropertyOperation, KeybindingSettingOperation, CheckUpdateOperation, FeedbackOperation, PrompQuickOpenOperation, CloseCurrentOperation, ReportIssueOperation } from './commands/rootOperations';
 import { FileRootCommands } from '../parts/files/commands/fileRootCommands';
-import { NewExmlOperation, RevealFileInOsOperation, DeleteFileOperation, NewFolderOperation, CopyFilePathOperation, RenameFileOperation, ExportFGUIOperation, SaveActiveOperation, SaveAllOperation, InstallShellCommandOperation } from '../parts/files/commands/fileRootOperations';
+import { NewExmlOperation, RevealFileInOsOperation, DeleteFileOperation, NewFolderOperation, CopyFilePathOperation, RenameFileOperation, SaveActiveOperation, SaveAllOperation, InstallShellCommandOperation } from '../parts/files/commands/fileRootOperations';
 import { IOperationBrowserService } from '../../platform/operations/common/operations-browser';
 import { SystemCommands } from 'egret/platform/operations/commands/systemCommands';
 import { PanelDom } from '../../parts/browser/panelDom';
@@ -49,6 +49,7 @@ import * as paths from 'egret/base/common/paths';
 import { IOutputService } from '../parts/output/common/output';
 import { OutPutService } from '../parts/output/common/outputService';
 import { ExplorerService } from '../parts/files/common/explorerService';
+import { IFGUI, FGUI } from 'egret/workbench/services/editor/transverter/FGUI';
 
 const WORKBENCH_GLOBAL_STORAGE = 'workbenchGlobalStorageKey';
 /**
@@ -174,6 +175,7 @@ export class Workbench implements IFocusablePart {
 		this.focusablePartCommandHelper.registerCommand(FileRootCommands.COPY_FILE_PATH, CopyFilePathOperation);
 		this.focusablePartCommandHelper.registerCommand(FileRootCommands.RENAME_FILE, RenameFileOperation);
 		this.focusablePartCommandHelper.registerCommand(FileRootCommands.EXPORT_FGUI, ExportFGUIOperation);
+		this.focusablePartCommandHelper.registerCommand(FileRootCommands.EXPORT_FGUI_BATCH, ExportFGUIBatchOperation);
 		this.focusablePartCommandHelper.registerCommand(FileRootCommands.SAVE_ACTIVE, SaveActiveOperation);
 		this.focusablePartCommandHelper.registerCommand(FileRootCommands.SAVE_ALL, SaveAllOperation);
 		this.focusablePartCommandHelper.registerCommand(FileRootCommands.INSTALL_SHELL_COMMAND, InstallShellCommandOperation);
@@ -262,6 +264,10 @@ export class Workbench implements IFocusablePart {
 		initCodeService(this.instantiationService);
 		this.initParts();
 		this.registerListeners();
+
+		let fgui = this.instantiationService.createInstance(FGUI);
+		this.instantiationService.addService(IFGUI, fgui);
+		
 		ipcRenderer.send('egret:workbenchReady', this.windowService.getCurrentWindowId());
 	}
 

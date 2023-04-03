@@ -1235,6 +1235,10 @@
 		"s": "Export To FGUI",
 		"t": "Export To FGUI"
 	},
+	"menus.setFileMenu.export_fgui_all": {
+		"s": "Export To FGUI Batch",
+		"t": "Export To FGUI Batch"
+	},
 	"menus.setFileMenu.installShellCommand": {
 		"s": "Install shell command",
 		"t": "Install shell command"

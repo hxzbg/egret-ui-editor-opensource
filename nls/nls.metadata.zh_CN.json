@@ -1233,7 +1233,11 @@
 	},
 	"menus.setFileMenu.export_fgui": {
 		"s": "Export To FGUI",
-		"t": "导出为FGUI"
+		"t": "导出当前文件(FGUI)"
+	},
+	"menus.setFileMenu.export_fgui_all": {
+		"s": "Export To FGUI Batch",
+		"t": "导出所有文件(FGUI)"
 	},
 	"menus.setFileMenu.installShellCommand": {
 		"s": "Install shell command",

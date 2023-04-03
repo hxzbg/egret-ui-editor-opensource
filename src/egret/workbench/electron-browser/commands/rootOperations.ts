@@ -1,14 +1,11 @@
 import { IOperation } from 'egret/platform/operations/common/operations';
 import { IWindowClientService } from '../../../platform/windows/common/window';
 import { AboutPanel } from '../../parts/about/aboutPanel';
-import { Workbench } from '../workbench';
 import { WingPropertyPanel } from '../../parts/wingproperty/wingPropertyPanel';
 import { IEgretProjectService } from '../../../exts/exml-exts/project';
-import { IInstantiationService } from '../../../platform/instantiation/common/instantiation';
+import { createDecorator, IInstantiationService } from '../../../platform/instantiation/common/instantiation';
 import { KeybindingPanel } from '../../parts/keybinding/keybindingPanel';
-import { InnerButtonType } from '../../../platform/innerwindow/common/innerWindows';
 import { IDisposable, dispose } from '../../../base/common/lifecycle';
-import { OperationBrowserService } from '../../../platform/operations/electron-browser/operationService';
 import { onLauncherTask } from 'egret/platform/launcher/common/launcherHelper';
 import Launcher from 'egret/platform/launcher/common/launcher';
 import { AppId } from 'egret/platform/launcher/common/launcherDefines';
@@ -16,7 +13,53 @@ import { SearchFilePanel } from 'egret/workbench/parts/searchFile/view/searchFil
 import { IWorkbenchEditorService } from 'egret/workbench/services/editor/common/ediors';
 import { BaseEditor } from 'egret/editor/browser/baseEditor';
 import { innerWindowManager } from 'egret/platform/innerwindow/common/innerWindowManager';
+import { IFileModelService } from 'egret/workbench/services/editor/common/models';
+import { IExmlFileEditorModel, IExmlModel } from 'egret/exts/exml-exts/exml/common/exml/models';
+import { ExmlFileEditor } from 'egret/exts/exml-exts/exml/browser/exmlFileEditor';
+import { IFGUI, FGUI } from 'egret/workbench/services/editor/transverter/FGUI';
 import { shell } from 'electron';
+import { prototype } from 'events';
+
+export class ExportFGUIOperation implements IOperation {
+	constructor(
+		@IFGUI protected fgui: FGUI,
+		@IFileModelService protected fileModelService: IFileModelService,
+		@IWorkbenchEditorService private workbenchEditorService: IWorkbenchEditorService
+	) {		
+	}
+	/**
+	 * 运行
+	 */
+	public run(): Promise<any> {
+		let fgui = this.fgui;
+		let fileEditor = this.workbenchEditorService.getActiveEditor() as ExmlFileEditor;
+		if(!fileEditor) {
+			return Promise.resolve(void 0);
+		}
+
+		return fileEditor.getModel().then(async function(model){
+			if(model) {
+				let value = await fgui.begin();
+				if(value) {
+					fgui.run(model);
+					fgui.end();
+				}
+			}
+		});
+	}
+	/**
+	 * 释放
+	 */
+	public dispose(): void {
+		this.fgui = null;
+	}
+}
+
+export class ExportFGUIBatchOperation extends ExportFGUIOperation {
+	/**
+	 * 运行
+	 */
+}
 
 /**
  * 打开文件夹的操作

@@ -2,18 +2,32 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { remote } from 'electron';
 import URI from 'egret/base/common/uri';
+import { IDisposable } from 'egret/base/common/lifecycle';
 import * as sax from 'egret/exts/exml-exts/exml/common/sax/sax';
+import { IOperation } from 'egret/platform/operations/common/operations';
 import * as xmlTagUtil from 'egret/exts/exml-exts/exml/common/sax/xml-tagUtils';
 import * as xmlStrUtil from 'egret/exts/exml-exts/exml/common/sax/xml-strUtils';
+import { createDecorator, IInstantiationService } from 'egret/platform/instantiation/common/instantiation';
 import { FileEditorModelManager } from 'egret/workbench/services/editor/common/modelManager';
-import { EValue, ENode, ELink, EObject, EContainer, EArray, ESize, EScale9Grid, EClass, EViewStack, EScroller } from 'egret/exts/exml-exts/exml/common/exml/treeNodesImpls';
-import { IFileEditorModel, IInnerModel } from 'egret/editor/core/models';
+import { EgretProjectModel } from 'egret/exts/exml-exts/exml/common/project/egretProject';
+import { FileRootCommands } from 'egret/workbench/parts/files/commands/fileRootCommands';
+import { FocusablePartCommandHelper } from 'egret/platform/operations/common/operations';
+import { ENode, EContainer} from 'egret/exts/exml-exts/exml/common/exml/treeNodesImpls';
+import { IWorkbenchEditorService } from 'egret/workbench/services/editor/common/ediors';
+import { IFileModelService } from 'egret/workbench/services/editor/common/models';
 import { ExmlModel } from 'egret/exts/exml-exts/exml/common/exml/exmlModel';
+import { IFileEditorModel, IInnerModel } from 'egret/editor/core/models';
+import { IEgretProjectService } from 'egret/exts/exml-exts/project';
+import { IMultiPageEditor } from 'egret/editor/core/editors';
+import { resolve } from 'dns';
+
+export const IFGUI = createDecorator<FGUI>("FGUI");
 
 /**
  * fgui服务
  */
-export class FGUI {
+export class FGUI
+{
 	protected _groups = {};
 	protected _states = null;
 	protected _current_group = "";
@@ -642,7 +656,7 @@ export class FGUI {
 	protected transform_url(resname:string, type:string) : string {
 		resname = this.transform_skin_name(resname);
 		let package_data = this.find_package(resname, type);
-		return package_data ? `ui://`.concat(package_data.id, package_data[type][resname].src) : resname;
+		return package_data ? `ui://`.concat(package_data.id, package_data[type][resname].src) : `ui://`.concat(resname);
 	}
 
 	protected transform_color(node: ENode, para:Object, state:string) : string {
@@ -729,18 +743,67 @@ export class FGUI {
 	}
 
 	private _packages = null;
+	private _skinRoot = null;
+	private _fguiRoot = null;
 	private _exmlConfig = null;
-	private _save_dir:string = null;
 	private _fileEditorModel: IFileEditorModel = null;
-	constructor() {
-
+	constructor(
+		@IFileModelService protected fileModelService: IFileModelService,
+		@IEgretProjectService protected egretProjectService: IEgretProjectService,
+	)
+	{
+		
 	}
 
 	private fix_dir_path(dir:string) : string {
-		if(!dir.endsWith(path.sep)) {
-			dir = dir.concat(path.sep);
+		dir = dir.replace(/\\/g, '/');
+		if(!dir.endsWith('/')) {
+			dir = dir.concat('/');
 		}
 		return dir;
+	}
+
+	private _package_id_seed = '123456789abcdefghijklmnopqrstuvwxyzz';
+	private generate_package_id() : string {
+		let package_id = "";
+		while(!package_id) {
+			for(let i = 0; i < 9; i ++) {
+				let random = Math.floor(Math.random() * this._package_id_seed.length);
+				package_id = package_id.concat(this._package_id_seed[random]);
+			}
+	
+			if(this._packages) {
+				for (const key in this._packages) {
+					if(key === package_id) {
+						package_id = "";
+					}
+				}
+			}
+		}
+		return package_id;
+	}
+
+	private create_dir(dir:string) : string {
+		dir = this.fix_dir_path(dir);
+		if(!fs.existsSync(dir)) {
+			fs.mkdirSync(dir);
+		}
+		return dir;
+	}
+
+	private create_package(dir:string) {
+		dir = this.create_dir(dir);
+		let packagefile = dir.concat("package.xml");
+		if(!fs.existsSync(packagefile)) {
+			let package_id = this.generate_package_id();
+			let xml = `<packageDescription id="${package_id}">
+	<resources>
+	</resources>
+	<publish name="" />
+</packageDescription>`;
+			fs.writeFileSync(packagefile, xml, "utf8");
+			this.build_package(packagefile);
+		}
 	}
 
 	private search_package(dir:string) {
@@ -799,7 +862,7 @@ export class FGUI {
 										xml:element,
 										fileName:path.concat(name),
 									};
-									let key = name.replace('.', '_');
+									let key = name.replace(/\./g, '_');
 									package_data.font[key] = font;
 								}
 								break;
@@ -810,7 +873,7 @@ export class FGUI {
 										fileName:path.concat(name),
 									};
 									image["scale9grid"] = attributes["scale9grid"];
-									let key = name.replace('.', '_');
+									let key = name.replace(/\./g, '_');
 									package_data.image[key] = image;
 								}
 								break;
@@ -837,78 +900,107 @@ export class FGUI {
 		});
 	}
 
-	public export(modelManager: FileEditorModelManager, resources?: URI[]): Promise<void> {
-		remote.dialog.showOpenDialog(remote.getCurrentWindow(), {
-			defaultPath: '',
-			properties: ['openDirectory']
-		}).then((value) => {
-			const filePaths = value.filePaths;
-			if (filePaths && filePaths.length === 1) {
-				this._save_dir = this.fix_dir_path(filePaths[0]);
-				if(resources && resources.length > 0) {
-					resources.forEach(element => {
-						const models = modelManager.getAll(element);
-						if(models && models.length == 1) {
-							this.save(models[0]);
-						}
-					});
-				}else{
-					const models = modelManager.getAll(null);
-					if(models && models.length > 0) {
-						models.forEach(element => {
-							this.save(element);
-						})
-					}
+	public begin() : Promise<boolean> {
+		this._packages = null;
+		const egretProjectService = this.egretProjectService;
+		const egretProject = egretProjectService.projectModel;
+		let projectModel = egretProjectService.projectModel;
+		if(projectModel.exmlRoot && projectModel.exmlRoot.length > 0) {
+			let skinRoot = projectModel.exmlRoot[0].path;
+			if(skinRoot) {
+				skinRoot = skinRoot.replace(/\\/g, '/');
+				if(!skinRoot.endsWith('/')) {
+					skinRoot = skinRoot.concat('/');
 				}
 			}
+			this._skinRoot = skinRoot;
+		}
 
-			if(this._packages) {
-				for (const key in this._packages) {
-					const element = this._packages[key];
-					if(element.dirty) {
-						let xml = xmlTagUtil.stringify(element.xml);
-						fs.writeFileSync(element.filepath, xml, "utf8");
-					}
+		this._exmlConfig = egretProjectService.exmlConfig;
+		const wingProperties = egretProject.getWingProperties();
+		return new Promise<boolean>(function(resolve, reject){
+			if(!wingProperties.fgui) {
+				remote.dialog.showMessageBox(remote.getCurrentWindow(), {
+					type:'error',
+					title:'错误',
+					message:'请选择FGUI项目根路径',
+					buttons:['确定'],
+				}).then((value) => {
+					resolve(false);
+				});
+			}else{
+				let fguiRoot = wingProperties.fgui;
+				fguiRoot = fguiRoot.replace(/\\/g, '/');
+				let lastindex = fguiRoot.lastIndexOf('/');
+				if(lastindex > 0) {
+					fguiRoot = fguiRoot.substring(0, lastindex + 1);
 				}
+				this._fguiRoot = fguiRoot.concat('assets/');
+
+				this._packages = {};
+				this.search_package(this._fguiRoot);
+				resolve(true);
 			}
-		});
-		return;
+		}.bind(this));
 	}
 
-	private save(fileModel: IFileEditorModel): Promise<boolean> {
+	public run(fileModel: IFileEditorModel): boolean {
+		if(fileModel) {
+			this.save(fileModel);
+			return true;
+		}
+		return false;
+	}
+
+	public end() {
+		if(!this._packages) {
+			return;
+		}
+
+		for (const key in this._packages) {
+			const element = this._packages[key];
+			if(element.dirty) {
+				element.dirty = false;
+				let xml = xmlTagUtil.stringify(element.xml);
+				fs.writeFileSync(element.filepath, xml, "utf8");
+			}
+		}
+	}
+
+	private save(fileModel: IFileEditorModel) {
 		if(!fileModel) {
 			return;
 		}
 		
-		if(!this._packages) {
-			const egretProjectService = fileModel["egretProjectService"];
-			const egretProject = egretProjectService.projectModel;
-			this._exmlConfig = egretProjectService.exmlConfig;
-			const wingProperties = egretProject.getWingProperties();
-			if(!wingProperties.fgui) {
-				return;
-			}
-			this._packages = {};
-			this.search_package(wingProperties.fgui);
-		}
-
 		const model = fileModel.getModel() as ExmlModel;
 		if(!model) {
 			return;
 		}
 
+		let filepath = fileModel.getResource().path
+		filepath = filepath.replace(/\\/g, '/');
+		let lastindex = filepath.lastIndexOf(this._skinRoot);
+		if(lastindex < 0) {
+			return;
+		}
+		filepath = filepath.substring(lastindex + this._skinRoot.length);
+		let dir = this._fguiRoot;
+		let chunks = filepath.split('/');
+		for(let i = 0; i < chunks.length - 1; i ++) {
+			dir = dir.concat(chunks[i], '/');
+			this.create_dir(dir);
+		}
+		filepath = this._fguiRoot.concat(filepath);
+		lastindex = filepath.lastIndexOf('.');
+		if(lastindex > 0) {
+			filepath = filepath.substring(0, lastindex);
+			filepath = filepath.concat('.xml');
+		}
+
 		this._fileEditorModel = fileModel;
 		let xml = `<?xml version="1.0" encoding="utf-8"?>\n`;
 		xml = xml.concat(this.build_component("", model.getRootNode() as ENode, ""));
-		let filename = this._fileEditorModel.getResource().path
-		filename = path.basename(filename);
-		let lastindex = filename.lastIndexOf('.');
-		if(lastindex > 0) {
-			filename = filename.substring(0, lastindex);
-		}
-		filename = this._save_dir.concat(filename, ".xml");
-		fs.writeFileSync(filename, xml, "utf8");
-		return;
+		fs.writeFileSync(filepath, xml, "utf8");
 	}
 
 	protected build_property_xml(property:string, value:any) : string {

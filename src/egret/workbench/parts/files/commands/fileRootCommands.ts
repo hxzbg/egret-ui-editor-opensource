@@ -22,6 +22,7 @@ export enum FileRootCommands {
 	RELOAD = 'reload',
 	/**导出为FGUI*/
 	EXPORT_FGUI = "export_fgui",
+	EXPORT_FGUI_BATCH = "export_fgui_batch",
 	/** 安装命令 */
 	INSTALL_SHELL_COMMAND = 'installShellCommand'
 }

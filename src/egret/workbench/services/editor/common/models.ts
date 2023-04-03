@@ -168,9 +168,4 @@ export interface IFileModelService extends IDisposable {
 	 * @param resources 
 	 */
 	confirmSave(resources?: URI[]): Promise<ConfirmResult>;
-	/**
-	 * 导出文件
-	 * @param resources 
-	 */
-	export(resources?: URI[], format?: string): Promise<void>;
 }
