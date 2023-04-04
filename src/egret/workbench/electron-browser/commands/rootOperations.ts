@@ -16,6 +16,7 @@ import { IWorkbenchEditorService } from 'egret/workbench/services/editor/common/
 import { BaseEditor } from 'egret/editor/browser/baseEditor';
 import { innerWindowManager } from 'egret/platform/innerwindow/common/innerWindowManager';
 import { IFileModelService } from 'egret/workbench/services/editor/common/models';
+import { ExmlModel } from 'egret/exts/exml-exts/exml/common/exml/exmlModel';
 import { IExmlFileEditorModel, IExmlModel } from 'egret/exts/exml-exts/exml/common/exml/models';
 import { ExmlFileEditor } from 'egret/exts/exml-exts/exml/browser/exmlFileEditor';
 import { IFGUI, FGUI } from 'egret/workbench/services/editor/transverter/FGUI';
@@ -117,14 +118,20 @@ export class ExportFGUIBatchOperation extends ExportFGUIOperation {
 			resolve(true);
 		}else{
 			let filepath = this._exmls.pop();
-			this.workbenchEditorService.openEditor({ resource: URI.file(filepath) }).then((fileEditor) => {
-				fileEditor.getModel().then((model) => {
-					if(model) {
-						this.fgui.run(model);
+			this.workbenchEditorService.openEditor({ resource: URI.file(filepath) }, true).then((fileEditor) => {
+				fileEditor.getModel().then((fileEditorModel) => {
+					if(fileEditorModel) {
+						let exmlModel = fileEditorModel.getModel() as ExmlModel;
+						exmlModel.refreshTree().then(() => {
+							this.fgui.run(fileEditorModel);
+							setTimeout(() => {
+								this.workbenchEditorService.closeEditor(fileEditor);
+								setTimeout(() => {
+									this.export_one(resolve);
+								}, 100);
+							}, 100);
+						});
 					}
-					this.workbenchEditorService.closeEditor(fileEditor);
-				}).then(() => {
-					this.export_one(resolve);
 				});
 			});
 		}
