@@ -72,16 +72,14 @@ export class FGUI
 			return "";
 		},
 		color:function(fgui:FGUI, node: ENode, state:string) : string {
-			if(node.getName() == "BitmapLabel") {
-				return "#ffffff";
-			}
 			return fgui.transform_color(node,{
-				Label:"textColor",
+				BitmapLabel:{default:"#FFFFFF"},
+				Label:{param:"textColor", default:"#FFFFFF"},
 			}, state);
 		},
 		strokeColor:function(fgui:FGUI, node: ENode, state:string) : string {
 			return fgui.transform_color(node,{
-				Label:"strokeColor",
+				Label:{param:"strokeColor"},
 			}, state);
 		},
 		type:function(fgui:FGUI, node: ENode, state:string) : string {
@@ -316,23 +314,25 @@ export class FGUI
 					return "";
 				},
 				post_processor:function(fgui:FGUI, space:string, node: ENode, state:string) : string {
-					let content = ">\n";
-					//控制器
-					for (const key in fgui._states) {
-						content = content.concat("\t", `<controller name="`, key, `" pages="`);
-						let states = fgui._states[key];
-						for(let index = 0; index < states.length; index++) {
-							content = content.concat((index + 1).toString(), ",", states[index], ",");
-						}
-						content = content.substring(0, content.length - 1);
-						content = content.concat(`" selected="0"/>\n`);
-					}
-
+					let content = "";
 					content = content.concat("\t<displayList>\n");
 					content = content.concat(fgui.parse_children(space + "\t", node, state));
 					content = content.concat("\t</displayList>\n");
 					content = content.concat("</component>\n");
-					return content;
+
+					//控制器
+					let property_add = ">\n";
+					for (const key in fgui._states) {
+						property_add = property_add.concat("\t", `<controller name="`, key, `" pages="`);
+						let states = fgui._states[key];
+						for(let index = 0; index < states.length; index++) {
+							property_add = property_add.concat((index + 1).toString(), ",", states[index], ",");
+						}
+						property_add = property_add.substring(0, property_add.length - 1);
+						property_add = property_add.concat(`" selected="0"/>\n`);
+					}
+
+					return property_add.concat(content);
 				},
 			},
 			Group:{
@@ -386,12 +386,12 @@ export class FGUI
 						children.forEach(child => {
 							switch(child.localName) {
 								case "List": {
-									content = content.concat(fgui.process_list(space, node, child, state));
+									content = content.concat(fgui.process_list(space, node, child, false, state));
 								}
 								break;
 
 								case "TabBar": {
-									content = content.concat(fgui.process_tabbar(space, node, child, state));
+									content = content.concat(fgui.process_list(space, node, child, true, state));
 								}
 								break;
 							}
@@ -400,14 +400,30 @@ export class FGUI
 					return content;
 				},
 			},
+
+			CheckBox:{
+				name_fix:"component",
+				post_processor:function(fgui:FGUI, space:string, node: ENode, state:string) : string {
+					let content = "";
+					content = content.concat(">\n", space, `\t<Button mode="Check"/>\n`, space, `</component>\n`);
+					return content;
+				},
+			},
+			RadioButton:{
+				name_fix:"component",
+				post_processor:function(fgui:FGUI, space:string, node: ENode, state:string) : string {
+					let content = "";
+					content = content.concat(">\n", space, `\t<Button mode="Radio"/>\n`, space, `</component>\n`);
+					return content;
+				},
+			},
+
 			default:{
 				//EUI->FGUI 组件名字转换逻辑
 				name_fix:{
 					Image:"image",
 					Label:"text",
 					Rect:"graph",
-					CheckBox:"Button",
-					RadioButton:"Button",
 					BitmapLabel:"text",
 				},
 
@@ -568,7 +584,7 @@ export class FGUI
 		return content;
 	}
 
-	protected process_collection(space:string, node: ENode, tag:sax.Tag) : string {
+	protected process_collection(space:string, node: ENode, tag:sax.Tag, handler:any) : string {
 		let content = "";
 		space = space.concat('\t');
 		if(tag.children) {
@@ -584,6 +600,10 @@ export class FGUI
 							}
 							content = content.concat(space, "</item>\n");
 						});
+
+						if(handler) {
+							handler(array.children);
+						}
 					}
 				}
 			});
@@ -591,11 +611,21 @@ export class FGUI
 		return content;
 	}
 
-	protected process_list(space:string, node: ENode, tag:sax.Tag, state:string) : string {
+	protected process_list(space:string, node: ENode, tag:sax.Tag, tabbar:boolean, state:string) : string {
 		let property_add = this.build_property_xml("defaultItem", this.transform_url(tag.attributes["itemRendererSkinName"], "component"));
 
 		let list_content = "";
+		let tabbar_control_size = 0;
 		let children = tag.children;
+		let process_collection_handler = null;
+		if(tabbar) {
+			process_collection_handler = function(children) {
+				if(children) {
+					tabbar_control_size = children.length;
+				}
+			}
+		}
+
 		if(children) {
 			children.forEach(child => {
 				switch(child.localName) {
@@ -612,20 +642,40 @@ export class FGUI
 					break;
 
 					case "ArrayCollection": {
-						list_content = list_content.concat(this.process_collection(space, node, child));
+						list_content = list_content.concat(this.process_collection(space, node, child, process_collection_handler));
 					}
 					break;
 				}
 			});
 		}
 		let content = "";
-		content = content.concat(property_add, ">\n", list_content, space, "</list>\n");
-		return content;
-	}
+		if(tabbar_control_size > 0) {
+			//添加TabBar独占控制器
+			let id = this.get_property(node, "id", "string", state);
+			if(!id) {
+				id = "TabBarControl";
+			}
 
-	protected process_tabbar(space:string, node: ENode, tag:sax.Tag, state:string) : string {
-		let content = "";
-		content = content.concat(">\n", space, "</list>\n");
+			let index= 0;
+			let idtest = id;
+			while(true) {
+				if(!this._states[idtest]) {
+					break;
+				}else{
+					index = index + 1;
+					idtest = id.concat(index);
+				}
+			}
+
+			let states = [];
+			for(let i = 0; i < tabbar_control_size; i ++) {
+				states.push('');
+			}
+			this._states[idtest] = states;
+
+			property_add.concat(` selectionController="`, idtest, `"`);
+		}
+		content = content.concat(property_add, ">\n", list_content, space, "</list>\n");
 		return content;
 	}
 
@@ -660,14 +710,21 @@ export class FGUI
 	}
 
 	protected transform_color(node: ENode, para:Object, state:string) : string {
-		let property = para[node.getName()];
-		if(property) {
-			let color = this.get_property(node, property, "string", state);
-			if(color) {
-				return "#" + color.substring(2);
+		let color = null;
+		let config = para[node.getName()];
+		if(config) {
+			if(config.param) {
+				color = this.get_property(node, config.param, "string", state);
+				if(color) {
+					return "#" + color.substring(2);
+				}
+			}
+			
+			if(!color){
+				color = config.default;
 			}
 		}
-		return "";
+		return color;
 	}
 
 	protected find_package(key:string, type:string) : any {
@@ -689,7 +746,7 @@ export class FGUI
 				return package_data ? package_data.id : null;
 			}
 			return key;
-		}else if(node.getNs().prefix == "ns1") {
+		}else if(node.getNs().prefix === "ns1" || node.getName() === "CheckBox" || node.getName() === "RadioButton") {
 			let skinName = this.get_property(node, "skinName", "string", state);
 			if(!skinName) {
 				skinName = node.getName();
@@ -709,7 +766,7 @@ export class FGUI
 				return package_data ? package_data.image[key].src : null;
 			}
 			return key;
-		}else if(node.getNs().prefix == "ns1") {
+		}else if(node.getNs().prefix === "ns1" || node.getName() === "CheckBox" || node.getName() === "RadioButton") {
 			let skinName = this.get_property(node, "skinName", "string", state);
 			if(!skinName) {
 				skinName = node.getName();
@@ -730,7 +787,7 @@ export class FGUI
 				return package_data ? package_data.image[key].fileName : null;
 			}
 			return key;
-		}else if(node.getNs().prefix == "ns1") {
+		}else if(node.getNs().prefix === "ns1" || node.getName() === "CheckBox" || node.getName() === "RadioButton") {
 			let skinName = this.get_property(node, "skinName", "string", state);
 			if(!skinName) {
 				skinName = node.getName();
@@ -746,7 +803,6 @@ export class FGUI
 	private _skinRoot = null;
 	private _fguiRoot = null;
 	private _exmlConfig = null;
-	private _fileEditorModel: IFileEditorModel = null;
 	constructor(
 		@IFileModelService protected fileModelService: IFileModelService,
 		@IEgretProjectService protected egretProjectService: IEgretProjectService,
@@ -997,7 +1053,6 @@ export class FGUI
 			filepath = filepath.concat('.xml');
 		}
 
-		this._fileEditorModel = fileModel;
 		let xml = `<?xml version="1.0" encoding="utf-8"?>\n`;
 		xml = xml.concat(this.build_component("", model.getRootNode() as ENode, ""));
 		fs.writeFileSync(filepath, xml, "utf8");
