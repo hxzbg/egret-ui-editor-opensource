@@ -900,7 +900,7 @@ export class FGUI
 		});
 	}
 
-	public begin() : Promise<boolean> {
+	public begin() {
 		this._packages = null;
 		const egretProjectService = this.egretProjectService;
 		const egretProject = egretProjectService.projectModel;
@@ -918,7 +918,7 @@ export class FGUI
 
 		this._exmlConfig = egretProjectService.exmlConfig;
 		const wingProperties = egretProject.getWingProperties();
-		return new Promise<boolean>(function(resolve, reject){
+		return new Promise(function(resolve, reject){
 			if(!wingProperties.fgui) {
 				remote.dialog.showMessageBox(remote.getCurrentWindow(), {
 					type:'error',

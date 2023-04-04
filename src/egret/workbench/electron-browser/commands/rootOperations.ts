@@ -1,3 +1,5 @@
+import * as fs from 'fs';
+import * as path from 'path';
 import { IOperation } from 'egret/platform/operations/common/operations';
 import { IWindowClientService } from '../../../platform/windows/common/window';
 import { AboutPanel } from '../../parts/about/aboutPanel';
@@ -17,6 +19,8 @@ import { IFileModelService } from 'egret/workbench/services/editor/common/models
 import { IExmlFileEditorModel, IExmlModel } from 'egret/exts/exml-exts/exml/common/exml/models';
 import { ExmlFileEditor } from 'egret/exts/exml-exts/exml/browser/exmlFileEditor';
 import { IFGUI, FGUI } from 'egret/workbench/services/editor/transverter/FGUI';
+import { IEditorService, IEditor } from 'egret/editor/core/editors';
+import URI from 'egret/base/common/uri';
 import { shell } from 'electron';
 import { prototype } from 'events';
 
@@ -24,7 +28,7 @@ export class ExportFGUIOperation implements IOperation {
 	constructor(
 		@IFGUI protected fgui: FGUI,
 		@IFileModelService protected fileModelService: IFileModelService,
-		@IWorkbenchEditorService private workbenchEditorService: IWorkbenchEditorService
+		@IWorkbenchEditorService protected workbenchEditorService: IWorkbenchEditorService,
 	) {		
 	}
 	/**
@@ -56,9 +60,93 @@ export class ExportFGUIOperation implements IOperation {
 }
 
 export class ExportFGUIBatchOperation extends ExportFGUIOperation {
+	protected _exmls:string[] = [];
+	private fix_dir_path(dir:string) : string {
+		dir = dir.replace(/\\/g, '/');
+		if(!dir.endsWith('/')) {
+			dir = dir.concat('/');
+		}
+		return dir;
+	}
+
+	private search_exml(dir:string) {
+		dir = this.fix_dir_path(dir);
+		const files = fs.readdirSync(dir);
+		for(let filename of files) {
+			const filepath = path.join(dir, filename);
+			const stats = fs.statSync(filepath);
+			if(stats.isFile()) {
+				let extname = path.extname(filename);
+				if(extname && extname.toLowerCase() === ".exml") {
+					this._exmls.push(filepath);
+				}
+			}else if(stats.isDirectory()) {
+				this.search_exml(filepath);
+			}
+		}
+	}
+	constructor(
+		@IFGUI protected fgui: FGUI,
+		@IFileModelService protected fileModelService: IFileModelService,
+		@IWorkbenchEditorService protected workbenchEditorService: IWorkbenchEditorService,
+		@IEgretProjectService protected egretProjectService: IEgretProjectService,
+		@IEditorService protected editorService: IEditorService,
+	) { 
+		super(fgui, fileModelService, workbenchEditorService);
+		let projectModel = egretProjectService.projectModel;
+		if(projectModel.root && projectModel.exmlRoot && projectModel.exmlRoot.length > 0) {
+			let root = projectModel.root.fsPath;
+			root = root.replace(/\\/g, '/');
+			if(!root.endsWith('/')) {
+				root = root.concat('/');
+			}
+			let skinRoot = projectModel.exmlRoot[0].path;
+			skinRoot = skinRoot.replace(/\\/g, '/');
+			if(!skinRoot.endsWith('/')) {
+				skinRoot = skinRoot.concat('/');
+			}
+			if(skinRoot[0] === '/') {
+				skinRoot = skinRoot.substring(1);
+			}
+			this.search_exml(root.concat(skinRoot));
+		}
+	}
+
+	protected export_one(resolve) {
+		if(this._exmls.length <= 0 ) {
+			resolve(true);
+		}else{
+			let filepath = this._exmls.pop();
+			this.workbenchEditorService.openEditor({ resource: URI.file(filepath) }).then((fileEditor) => {
+				fileEditor.getModel().then((model) => {
+					if(model) {
+						this.fgui.run(model);
+					}
+					this.workbenchEditorService.closeEditor(fileEditor);
+				}).then(() => {
+					this.export_one(resolve);
+				});
+			});
+		}
+	}
+
 	/**
 	 * 运行
 	 */
+	public run(): Promise<any> {
+		let editors = this.workbenchEditorService.getOpenEditors();
+		return this.workbenchEditorService.closeEditors(editors).then(() => {
+			return this.fgui.begin().then((value) => {
+				if(value){
+					return new Promise((resolve) => {
+						this.export_one(resolve);
+					});
+				}
+			}).then(() => {
+				this.fgui.end();
+			});
+		})
+	}
 }
 
 /**
