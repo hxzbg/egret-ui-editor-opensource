@@ -275,11 +275,11 @@ export class FGUI
 		fillColor:function(fgui:FGUI, propertys:Object, node: ENode, state:string) {
 			switch(node.getName()) {
 				case "Rect": {
-					let alpha = Math.floor(fgui.get_property(node, "fillAlpha", "float", state) * 255);
-					if(alpha < 1) {
-						return;
+					let alpha = 255;
+					let fillAlpha = fgui.get_property(node, "fillAlpha", "string", state);
+					if(fillAlpha){
+						alpha = Math.floor(Number.parseFloat(fillAlpha) * 255);
 					}
-
 					let color = fgui.get_property(node, "fillColor", "string", state);
 					if(!color) {
 						color = "0x000000";
@@ -848,9 +848,15 @@ export class FGUI
 			}
 		}
 		//添加Group信息
-		content = content.concat(space, `<group id="`, id, `" name="" xy="`, group["x"], `,`, group["y"], `" group="`, group["group"], `" advanced="true" />\n`);
+		let group_content = space.concat(`<group id="`, id, `" name="`, id, `" xy="`, group["x"], `,`, group["y"], `" group="`, group["group"], `" advanced="true"`);
+		let gear = this.build_gear_content(space, node, this._processor.default.Group);
+		if(gear){
+			group_content = group_content.concat(`>\n`, space, `\t`, gear, space, `</group>\n`);
+		}else{
+			group_content = group_content.concat(`/>\n`);
+		}
 		this._current_group = group_prev;
-		return content;
+		return content.concat(group_content);
 	}
 
 	private _packages = null;

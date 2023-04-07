@@ -126,10 +126,11 @@ export class ExportFGUIBatchOperation extends ExportFGUIOperation {
 							setTimeout(() => {
 								this.fgui.run(fileEditorModel);
 								setTimeout(() => {
-									this.workbenchEditorService.closeEditor(fileEditor);
-									this.export_one(resolve);
+									this.workbenchEditorService.closeEditor(fileEditor).then(() => {
+										this.export_one(resolve);
+									})
 								}, 100);
-							}, 100);
+							}, 500);
 						});
 					}
 				});
