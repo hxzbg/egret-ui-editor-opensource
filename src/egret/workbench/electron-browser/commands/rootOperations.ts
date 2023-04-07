@@ -123,10 +123,10 @@ export class ExportFGUIBatchOperation extends ExportFGUIOperation {
 					if(fileEditorModel) {
 						let exmlModel = fileEditorModel.getModel() as ExmlModel;
 						exmlModel.refreshTree().then(() => {
-							this.fgui.run(fileEditorModel);
 							setTimeout(() => {
-								this.workbenchEditorService.closeEditor(fileEditor);
+								this.fgui.run(fileEditorModel);
 								setTimeout(() => {
+									this.workbenchEditorService.closeEditor(fileEditor);
 									this.export_one(resolve);
 								}, 100);
 							}, 100);

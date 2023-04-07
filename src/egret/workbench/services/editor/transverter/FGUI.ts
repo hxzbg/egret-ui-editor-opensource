@@ -27,6 +27,9 @@ export class FGUI
 			let value = fgui.get_property(node, "id", "string", state);
 			propertys["id"] = value ? value : node.getName();
 		},
+		name:function(fgui:FGUI, propertys:Object, node: ENode, state:string) {
+			propertys["name"] = fgui.get_property(node, "id", "string", state);
+		},
 		xy:function(fgui:FGUI, propertys:Object, node: ENode, state:string) {
 			let x = 0;
 			let y = 0;
@@ -202,8 +205,9 @@ export class FGUI
 			if(node.getName() === "BitmapLabel") {
 				let font = fgui.get_property(node, "font", "string", state);
 				propertys["font"] = fgui.transform_url(font, "font");
+			}else{
+				propertys["font"] = fgui.get_property(node, "fontFamily", "string", state);
 			}
-			propertys["font"] = fgui.get_property(node, "fontFamily", "string", state);
 		},
 		textAlign:function(fgui:FGUI, propertys:Object, node: ENode, state:string) {
 			propertys["textAlign"] = fgui.get_property(node, "align", "string", state);
@@ -366,7 +370,6 @@ export class FGUI
 				name_fix:"component",
 				pre_processor:function(fgui:FGUI, space:string, node: ENode, state:string) : any {
 					if(!node.getParent()) {
-						fgui._states = {};
 						let states = fgui.get_property(node, "states", "string", "");
 						if(states) {
 							fgui._states["default"] = states.split(",");
@@ -374,24 +377,21 @@ export class FGUI
 					}
 				},
 				post_processor:function(fgui:FGUI, space:string, node: ENode, state:string) : any {
+					//控制器
 					let children = "";
+					for (const key in fgui._states) {
+						children = children.concat("\t", `<controller name="`, key, `" pages="`);
+						let states = fgui._states[key];
+						for(let index = 0; index < states.length; index++) {
+							children = children.concat((index + 1).toString(), ",", states[index], ",");
+						}
+						children = children.substring(0, children.length - 1);
+						children = children.concat(`" selected="0"/>\n`);
+					}
 					children = children.concat("\t<displayList>\n");
 					children = children.concat(fgui.parse_children(space + "\t", node, state));
 					children = children.concat("\t</displayList>\n");
-
-					//控制器
-					let property = "";
-					for (const key in fgui._states) {
-						property = property.concat("\t", `<controller name="`, key, `" pages="`);
-						let states = fgui._states[key];
-						for(let index = 0; index < states.length; index++) {
-							property = property.concat((index + 1).toString(), ",", states[index], ",");
-						}
-						property = property.substring(0, property.length - 1);
-						property = property.concat(`" selected="0"/>\n`);
-					}
-
-					return {property:property, children:children};
+					return {children:children};
 				},
 			},
 			Group:{
@@ -848,7 +848,7 @@ export class FGUI
 			}
 		}
 		//添加Group信息
-		content = content.concat(space, `<group id="`, id, `" name="`, node.getName(), `" xy="`, group["x"], `,`, group["y"], `" group="`, group["group"], `" advanced="true" />\n`);
+		content = content.concat(space, `<group id="`, id, `" name="" xy="`, group["x"], `,`, group["y"], `" group="`, group["group"], `" advanced="true" />\n`);
 		this._current_group = group_prev;
 		return content;
 	}
@@ -1011,10 +1011,7 @@ export class FGUI
 	}
 
 	public begin() {
-		this._groups = {};
-		this._states = null;
 		this._packages = null;
-		this._current_group = "";
 		const egretProjectService = this.egretProjectService;
 		const egretProject = egretProjectService.projectModel;
 		let projectModel = egretProjectService.projectModel;
@@ -1058,6 +1055,9 @@ export class FGUI
 	}
 
 	public run(fileModel: IFileEditorModel): boolean {
+		this._states = {};
+		this._groups = {};
+		this._current_group = "";
 		if(fileModel) {
 			this.save(fileModel);
 			return true;
@@ -1193,10 +1193,10 @@ export class FGUI
 				sidePair = propertys["sidePair"];
 				propertys["sidePair"] = null;
 
-				let property = ` name=""`;
+				let property = "";
 				for (const key in propertys) {
 					let element = propertys[key];
-					if(element) {
+					if(key === "id" || key === "name" || element) {
 						property = property.concat(' ', key, '="', element, '"');
 					}
 				}
