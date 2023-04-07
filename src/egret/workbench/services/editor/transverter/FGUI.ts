@@ -209,8 +209,11 @@ export class FGUI
 				propertys["font"] = fgui.get_property(node, "fontFamily", "string", state);
 			}
 		},
-		textAlign:function(fgui:FGUI, propertys:Object, node: ENode, state:string) {
-			propertys["textAlign"] = fgui.get_property(node, "align", "string", state);
+		align:function(fgui:FGUI, propertys:Object, node: ENode, state:string) {
+			propertys["align"] = fgui.get_property(node, "textAlign", "string", state);
+		},
+		vAlign:function(fgui:FGUI, propertys:Object, node: ENode, state:string) {
+			propertys["vAlign"] = fgui.get_property(node, "verticalAlign", "string", state);
 		},
 		minimum:function(fgui:FGUI, propertys:Object, node: ENode, state:string) {
 			propertys["minimum"] = fgui.get_property(node, "minimum", "int", state);
