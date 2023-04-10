@@ -379,6 +379,9 @@ export class FGUI
 			}
 			return propertys;
 		},
+		defaultItem:function(fgui:FGUI, propertys:Object, node: ENode, state:string) {
+			return fgui.set_attribute(propertys, "defaultItem", fgui.transform_url(fgui.get_property(node, "itemRendererSkinName", "string", state), "component"));
+		},
 	};
 	protected _processor = {
 		//自定义预制件
@@ -466,16 +469,14 @@ export class FGUI
 			List:{
 				name_fix:"list",
 				post_processor:function(fgui:FGUI, content_data:Object, node: ENode) : string {
-					fgui.process_list(content_data, node);
-					return fgui.content_data_tostring(content_data);
+					return fgui.process_list(content_data, node);
 				},
 			},
 			TabBar:{
 				name_fix:"list",
 				post_processor:function(fgui:FGUI, content_data:Object, node: ENode) : string {
 					content_data["tabbar"] = true;
-					fgui.process_list(content_data, node);
-					return fgui.content_data_tostring(content_data);
+					return fgui.process_list(content_data, node);
 				},
 			},
 
@@ -694,9 +695,9 @@ export class FGUI
 		let tag:sax.Tag = node.getXml();
 		let space = content_data["space"];
 		let tabbar = content_data["tabbar"];
-		let property = this.build_property_xml("defaultItem", this.transform_url(tag.attributes["itemRendererSkinName"], "component"));
+		let content = content_data["content"];
+		let propertys = content_data["propertys"]["_"];
 
-		let list_content = "";
 		let tabbar_control_size = 0;
 		let children = tag.children;
 		let process_collection_handler = null;
@@ -715,16 +716,16 @@ export class FGUI
 						if(child.children) {
 							let element = child.children[0];
 							if(element.localName === "HorizontalLayout") {
-								property = property.concat(this.build_property_xml("layout", "row"));
+								propertys["layout"] = "row";
 							}else if(element.localName === "VerticalLayout") {
-								property = property.concat(this.build_property_xml("layout", "column"));
+								propertys["layout"] = "column";
 							}
 						}
 					}
 					break;
 
 					case "ArrayCollection": {
-						list_content = list_content.concat(this.process_collection(space, node, child, process_collection_handler));
+						content = content.concat(this.process_collection(space, node, child, process_collection_handler));
 					}
 					break;
 				}
@@ -754,10 +755,10 @@ export class FGUI
 				states.push('');
 			}
 			this._states[idtest] = states;
-
-			property.concat(` selectionController="`, idtest, `"`);
+			propertys["selectionController"] = idtest;
 		}
-		return {property:property, children:list_content};
+		content_data["content"] = content;
+		return this.content_data_tostring(content_data);
 	}
 
 	protected transform_skin_name(skin:string) : string {
