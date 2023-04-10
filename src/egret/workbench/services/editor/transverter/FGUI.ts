@@ -520,6 +520,12 @@ export class FGUI
 					return fgui.process_list(content_data, node);
 				},
 			},
+			Component:{
+				name_fix:"graph",
+				post_processor:function(fgui:FGUI, content_data:Object, node: ENode) : string {
+					return fgui.content_data_tostring(content_data);
+				},
+			},
 
 			default:{
 				//EUI->FGUI 组件名字转换逻辑
