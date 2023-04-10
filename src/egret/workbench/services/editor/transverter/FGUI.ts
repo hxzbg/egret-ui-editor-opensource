@@ -241,6 +241,64 @@ export class FGUI
 			}
 			return fgui.set_attribute(propertys, "font", fgui.get_property(node, "fontFamily", "string", state));
 		},
+		layout:function(fgui:FGUI, propertys:Object, node: ENode, state:string) : any {
+			let tag = node.getXml();
+			if(!tag){
+				return propertys;
+			}
+			let children = tag.children;
+			if(!children){
+				return propertys;
+			}
+
+			let nodeName = node.getName();
+			if(nodeName !== "Group" && nodeName !== "List" && nodeName !== "TabBar" && nodeName != "Scroller") {
+				return propertys;
+			}
+
+			let layout_tag = null;
+			for(let i = 0; i < children.length; i ++){
+				let child = children[i];
+				if(child.localName === "layout" && child.children) {
+					layout_tag = child.children[0];
+					break;
+				}
+			}
+			if(!layout_tag){
+				return propertys;
+			}
+
+			let layout_property = null;
+			switch(nodeName){
+				case "Group":
+				case "Scroller":
+				{
+					if(layout_tag.localName === "HorizontalLayout") {
+						layout_property = "hz";
+					}else if(layout_tag.localName === "VerticalLayout"){
+						layout_property = "vt";
+					}
+				}
+				break;
+				case "List":
+				case "TabBar":
+				{
+					if(layout_tag.localName === "HorizontalLayout") {
+						layout_property = "row";
+					}else if(layout_tag.localName === "VerticalLayout"){
+						layout_property = "column";
+					}else if(layout_tag.localName === "TileLayout"){
+						layout_property = "pagination";
+						propertys = fgui.set_attribute(propertys, "colGap", Number.parseInt(layout_tag.attributes["horizontalGap"]));
+						propertys = fgui.set_attribute(propertys, "lineItemCount", Number.parseInt(layout_tag.attributes["requestedColumnCount"]));
+						propertys = fgui.set_attribute(propertys, "lineItemCount2", Number.parseInt(layout_tag.attributes["requestedRowCount"]));
+					}
+				}
+				break;
+			}
+
+			return fgui.set_attribute(propertys, "layout", layout_property);
+		},
 		align:function(fgui:FGUI, propertys:Object, node: ENode, state:string) : any {
 			return fgui.set_attribute(propertys, "align", fgui.get_property(node, "textAlign", "string", state));
 		},
@@ -274,6 +332,8 @@ export class FGUI
 			let scaleX = fgui.get_property(node, "scaleX", "float", state);
 			let scaleY = fgui.get_property(node, "scaleY", "float", state);
 			if(scaleX != 0 || scaleY != 0) {
+				scaleX = scaleX ? scaleX : 1;
+				scaleY = scaleY ? scaleY : 1;
 				return fgui.set_attribute(propertys, "scale", scaleX.toString().concat(",", scaleY));
 			}
 			return propertys;
@@ -449,29 +509,31 @@ export class FGUI
 					if(!node.getParent()) {
 						let states = fgui.get_property(node, "states", "string", "");
 						if(states) {
-							fgui._states["default"] = states.split(",");
+							fgui._states["default"] = ["all"].concat(states.split(","));
 						}
 					}
 				},
 				post_processor:function(fgui:FGUI, content_data:Object, node: ENode) : string {
-					//控制器
-					let content = "";
-					for (const key in fgui._states) {
-						content = content.concat("\t", `<controller name="`, key, `" pages="`);
-						let states = fgui._states[key];
-						for(let index = 0; index < states.length; index++) {
-							content = content.concat((index + 1).toString(), ",", states[index], ",");
-						}
-						content = content.substring(0, content.length - 1);
-						content = content.concat(`" selected="0"/>\n`);
-					}
-					content = content.concat("\t<displayList>\n");
+					let content = "\t<displayList>\n";
 					let space = content_data["space"];
 					content_data["space"] = space + "\t";
 					content = content.concat(fgui.parse_children(content_data, node));
 					content_data["space"] = space;
 					content = content.concat("\t</displayList>\n");
-					content_data["content"] = content;
+
+					//控制器
+					let controller = "";
+					for (const key in fgui._states) {
+						controller = controller.concat("\t", `<controller name="`, key, `" pages="`);
+						let states = fgui._states[key];
+						for(let index = 0; index < states.length; index++) {
+							controller = controller.concat((index + 1).toString(), ",", states[index], ",");
+						}
+						controller = controller.substring(0, controller.length - 1);
+						controller = controller.concat(`" selected="0"/>\n`);
+					}
+
+					content_data["content"] = controller.concat(content);
 					return fgui.content_data_tostring(content_data);
 				},
 			},
@@ -744,6 +806,7 @@ export class FGUI
 		let tabbar = content_data["tabbar"];
 		let content = content_data["content"];
 		let propertys = content_data["propertys"]["_"];
+		propertys["overflow"] = "hidden";
 
 		let tabbar_control_size = 0;
 		let children = tag.children;
@@ -759,18 +822,6 @@ export class FGUI
 		if(children) {
 			children.forEach(child => {
 				switch(child.localName) {
-					case "layout": {
-						if(child.children) {
-							let element = child.children[0];
-							if(element.localName === "HorizontalLayout") {
-								propertys["layout"] = "row";
-							}else if(element.localName === "VerticalLayout") {
-								propertys["layout"] = "column";
-							}
-						}
-					}
-					break;
-
 					case "ArrayCollection": {
 						content = content.concat(this.process_collection(space, node, child, process_collection_handler));
 					}
@@ -797,9 +848,9 @@ export class FGUI
 				}
 			}
 
-			let states = [];
+			let states = ["none"];
 			for(let i = 0; i < tabbar_control_size; i ++) {
-				states.push('');
+				states.push("");
 			}
 			this._states[idtest] = states;
 			propertys["selectionController"] = idtest;
