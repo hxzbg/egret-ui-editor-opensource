@@ -131,15 +131,37 @@ export class FGUI
 			return propertys;
 		},
 		color:function(fgui:FGUI, propertys:Object, node: ENode, state:string) : any {
-			return fgui.set_attribute(propertys, "color", fgui.transform_color(node,{
-				BitmapLabel:{default:"#FFFFFF"},
-				Label:{param:"textColor", default:"#FFFFFF"},
-			}, state));
+			let color = "";
+			switch(node.getName()){
+				case "BitmapLabel":{
+					color = "0xffffff";
+				}
+				break;
+
+				case "Label":{
+					color = fgui.get_property(node, "textColor", "string", state);
+					if(!color){
+						color = "0xffffff";
+					}
+				}
+				break;
+			}
+			return fgui.set_attribute(propertys, "color", fgui.transform_color(color));
 		},
 		strokeColor:function(fgui:FGUI, propertys:Object, node: ENode, state:string) : any {
-			return fgui.set_attribute(propertys, "strokeColor", fgui.transform_color(node,{
-				Label:{param:"strokeColor"},
-			}, state));
+			switch(node.getName()){
+				case "Label":{
+					let borderColor = fgui.get_property(node, "borderColor", "string", state);
+					if(!borderColor){
+						let stroke = fgui.get_property(node, "stroke", "int", state);
+						if(stroke){
+							borderColor = "0x000000";
+						}
+					}
+					return fgui.set_attribute(propertys, "strokeColor", fgui.transform_color(borderColor));
+				}
+			}
+			return fgui.set_attribute(propertys, "strokeColor", fgui.transform_color(fgui.get_property(node, "strokeColor", "string", state)));
 		},
 		type:function(fgui:FGUI, propertys:Object, node: ENode, state:string) : any {
 			let name = node.getName();
@@ -204,10 +226,10 @@ export class FGUI
 			return fgui.set_attribute(propertys, "italic", fgui.get_property(node, "italic", "boolean", state));
 		},
 		fontSize:function(fgui:FGUI, propertys:Object, node: ENode, state:string) : any {
+			if(node.getName() === "Label"){
+				return fgui.set_attribute(propertys, "fontSize", node.getInstance()["size"]);
+			}
 			return fgui.set_attribute(propertys, "fontSize", fgui.get_property(node, "size", "int", state));
-		},
-		stroke:function(fgui:FGUI, propertys:Object, node: ENode, state:string) : any {
-			return fgui.set_attribute(propertys, "stroke", fgui.get_property(node, "stroke", "int", state));
 		},
 		font:function(fgui:FGUI, propertys:Object, node: ENode, state:string) : any {
 			if(node.getName() === "BitmapLabel") {
@@ -510,18 +532,7 @@ export class FGUI
 	}
 
 	protected get_property(node:ENode, key: string, type:string, state:string) : any {
-		let attribute = this.get_property_string(node, key, state);
-		switch(key) {
-			case "x":
-			case "y": {
-				let value = node.getInstance()[key];
-				if(value) {
-					attribute = value.toString();
-				}
-			}
-			break;
-		}
-		return this._property_formater[type](attribute);
+		return this._property_formater[type](this.get_property_string(node, key, state));
 	}
 
 	protected _gear_config = {
@@ -781,20 +792,9 @@ export class FGUI
 		return package_data ? `ui://`.concat(package_data.id, package_data[type][resname].src) : `ui://`.concat(resname);
 	}
 
-	protected transform_color(node: ENode, para:Object, state:string) : string {
-		let color = null;
-		let config = para[node.getName()];
-		if(config) {
-			if(config.param) {
-				color = this.get_property(node, config.param, "string", state);
-				if(color) {
-					return "#" + color.substring(2);
-				}
-			}
-			
-			if(!color){
-				color = config.default;
-			}
+	protected transform_color(color:string) : string {
+		if(color){
+			return "#" + color.substring(2);
 		}
 		return color;
 	}
