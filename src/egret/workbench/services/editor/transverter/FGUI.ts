@@ -22,6 +22,30 @@ export class FGUI
 	protected _groups = null;
 	protected _states = null;
 	protected _cur_group = "";
+	protected _relations = [
+		{params:["left","right","top","bottom"], relation:"rightext-right,topext-top,bottomext-bottom,leftext-left"},
+		{params:["horizontalCenter","verticalCenter"], relation:"center-center,middle-middle"},
+		{params:["width","height"], relation:"width-width%,height-height%"},
+		{params:["left","top"], relation:"left-left,top-top"},
+		{params:["left","bottom"], relation:"left-left,bottom-bottom"},
+		{params:["left","verticalCenter"], relation:"middle-middle,left-left"},
+		{params:["right","top"], relation:"right-right,top-top"},
+		{params:["right","bottom"], relation:"right-right,bottom-bottom"},
+		{params:["right","verticalCenter"], relation:"middle-middle,right-right"},
+		{params:["left","right"], relation:"rightext-right,leftext-left"},
+		{params:["top","horizontalCenter"], relation:"center-center,top-top"},
+		{params:["top","bottom"], relation:"topext-top,bottomext-bottom"},
+		{params:["bottom","horizontalCenter"], relation:"center-center,bottom-bottom"},
+		{params:["horizontalCenter"], relation:"center-center"},
+		{params:["verticalCenter"], relation:"middle-middle"},
+		{params:["width"], relation:"width-width%"},
+		{params:["height"], relation:"height-height%"},
+		{params:["left"], relation:"left-left"},
+		{params:["right"], relation:"right-right"},
+		{params:["top"], relation:"top-top"},
+		{params:["bottom"], relation:"bottom-bottom"},
+	];
+	protected _relation_cache = {};
 	protected _attributes_processor = {
 		id:function(fgui:FGUI, propertys:Object, node: ENode, state:string) : any {
 			let value = fgui.get_property(node, "id", "string", state);
@@ -41,76 +65,55 @@ export class FGUI
 					group = fgui._groups[group["group"]];
 				}
 			}
-			x = x + fgui.get_property(node, "x", "int", state);
-			y = y + fgui.get_property(node, "y", "int", state);
+			let instance = node.getInstance();
+			x = x + fgui._property_formater["int"](instance["x"]);
+			y = y + fgui._property_formater["int"](instance["y"]);
 			return fgui.set_attribute(propertys, "xy", x.toString() + ',' + y.toString());
 		},
 		size:function(fgui:FGUI, propertys:Object, node: ENode, state:string) : any {
-			let sidePair = propertys["sidePair"];
-			if(!sidePair){
-				sidePair = "";
-			}
-
-			//解析百分比对齐
-			let width = fgui.get_property(node, "width", "string", state);
-			if(width && width.endsWith('%')) {
-				if(sidePair) {
-					sidePair = sidePair.concat(`,`);
-				}
-				sidePair = sidePair.concat(`width-width%`);
-			}
-
-			let height = fgui.get_property(node, "height", "string", state);
-			if(height && height.endsWith('%')) {
-				if(sidePair) {
-					sidePair = sidePair.concat(`,`);
-				}
-				sidePair = sidePair.concat(`height-height%`);
-			}
-
-			//解析坐标对齐
-			let left = fgui.get_property(node, "left", "string", state);
-			let right = fgui.get_property(node, "right", "string", state);
-			if(left && right) {
-				if(sidePair) {
-					sidePair = sidePair.concat(`,`);
-				}
-				sidePair = sidePair.concat(`width-width`);
-			}
-
-			//解析居中
-			let horizontalCenter = fgui.get_property(node, "horizontalCenter", "string", state);
-			if(horizontalCenter) {
-				if(sidePair) {
-					sidePair = sidePair.concat(`,`);
-				}
-				sidePair = sidePair.concat(`center-center`);
-			}
-			let verticalCenter = fgui.get_property(node, "verticalCenter", "string", state);
-			if(verticalCenter) {
-				if(sidePair) {
-					sidePair = sidePair.concat(`,`);
-				}
-				sidePair = sidePair.concat(`middle-middle`);
-			}
-
-			let top = fgui.get_property(node, "top", "string", state);
-			let bottom = fgui.get_property(node, "bottom", "string", state);
-			if(top && bottom) {
-				if(sidePair) {
-					sidePair = sidePair.concat(`,`);
-				}
-				sidePair = sidePair.concat(`height-height`);
-			}
-
-			if(sidePair){
-				propertys = fgui.set_attribute(propertys, "relation", sidePair);
-			}
-
 			const instance = node.getInstance();
-			width = fgui._property_formater["int"](instance["width"]);
-			height = fgui._property_formater["int"](instance["height"]);
+			let width = fgui._property_formater["int"](instance["width"]);
+			let height = fgui._property_formater["int"](instance["height"]);
 			return fgui.set_attribute(propertys, "size", (width.toString().concat(",", height.toString())));
+		},
+		relation:function(fgui:FGUI, propertys:Object, node: ENode, state:string) : any {
+			let relation = "";
+			//解析百分比对齐
+			fgui._relation_cache["width"] = fgui.get_property(node, "width", "string", state).endsWith("%") ? "1" : "";
+			fgui._relation_cache["height"] = fgui.get_property(node, "height", "string", state).endsWith("%") ? "1" : "";
+			fgui._relation_cache["left"] = fgui.get_property(node, "left", "string", state);
+			fgui._relation_cache["right"] = fgui.get_property(node, "right", "string", state);
+			fgui._relation_cache["top"] = fgui.get_property(node, "top", "string", state);
+			fgui._relation_cache["bottom"] = fgui.get_property(node, "bottom", "string", state);
+			fgui._relation_cache["horizontalCenter"] = fgui.get_property(node, "horizontalCenter", "string", state);
+			fgui._relation_cache["verticalCenter"] = fgui.get_property(node, "verticalCenter", "string", state);
+
+			let property_used = {};
+			fgui._relations.forEach(element => {
+				let valid = true;
+				let params = element.params;
+				if(params){
+					for(let i = 0; i < params.length; i ++){
+						let param = params[i];
+						if(!fgui._relation_cache[param] || property_used[param]) {
+							valid = false;
+							break;
+						}
+					}
+				}
+
+				if(valid){
+					for(let i = 0; i < params.length; i ++){
+						property_used[params[i]] = true;
+					}
+
+					if(relation){
+						relation = relation.concat(",");
+					}
+					relation = relation.concat(element.relation);
+				}
+			});
+			return fgui.set_attribute(propertys, "relation", relation);
 		},
 		group:function(fgui:FGUI, propertys:Object, node: ENode, state:string) : any {
 			return fgui.set_attribute(propertys, "group", fgui._cur_group);
@@ -235,10 +238,8 @@ export class FGUI
 			if(node.getName() === "BitmapLabel") {
 				let font = fgui.get_property(node, "font", "string", state);
 				return fgui.set_attribute(propertys, "font", fgui.transform_url(font, "font"));
-			}else{
-				return fgui.set_attribute(propertys, "font", fgui.get_property(node, "fontFamily", "string", state));
 			}
-			return propertys;
+			return fgui.set_attribute(propertys, "font", fgui.get_property(node, "fontFamily", "string", state));
 		},
 		align:function(fgui:FGUI, propertys:Object, node: ENode, state:string) : any {
 			return fgui.set_attribute(propertys, "align", fgui.get_property(node, "textAlign", "string", state));
@@ -343,19 +344,45 @@ export class FGUI
 			}
 			return propertys;
 		},
-		scale9Grid:function(fgui:FGUI, propertys:Object, node: ENode, state:string) {
+		image_mode:function(fgui:FGUI, propertys:Object, node: ENode, state:string) {
+			if(node.getName() !== "Image"){
+				return propertys;
+			}
+
 			let key = fgui.get_property(node, "source", "string", state);
-			if(key) {
-				let scale9Grid = fgui.get_property(node, "scale9Grid", "string", state);
-				if(scale9Grid) {
-					let package_data = fgui.find_package(key, "image");
-					if(package_data) {
-						let xml = package_data.image[key].xml;
-						if(!xml.attributes["scale9grid"]) {
-							package_data.dirty = true;
-							xmlTagUtil.setAttribute(xml, "scale", "9grid");
-							xmlTagUtil.setAttribute(xml, "scale9grid", scale9Grid);
-						}
+			if(!key) {
+				return propertys;
+			}
+
+			let package_data = fgui.find_package(key, "image");
+			if(!package_data) {
+				return propertys;
+			}
+
+			let scale9Grid = fgui.get_property(node, "scale9Grid", "string", state);
+			if(scale9Grid) {
+				let xml = package_data.image[key].xml;
+				if(!xml.attributes["scale9grid"]) {
+					package_data.dirty = true;
+					xmlTagUtil.setAttribute(xml, "scale", "9grid");
+					xmlTagUtil.setAttribute(xml, "scale9grid", scale9Grid);
+				}
+			}else{
+				let fillMode = fgui.get_property(node, "fillMode", "string", state);
+				switch(fillMode){
+					case "repeat":
+						fillMode = "title";
+						break;
+					default:
+						fillMode = "";
+						break;
+				}
+
+				if(fillMode){
+					let xml = package_data.image[key].xml;
+					if(!xml.attributes["scale"]) {
+						package_data.dirty = true;
+						xmlTagUtil.setAttribute(xml, "scale", fillMode);
 					}
 				}
 			}
@@ -379,8 +406,22 @@ export class FGUI
 			}
 			return propertys;
 		},
+		label:function(fgui:FGUI, propertys:Object, node: ENode, state:string) {
+			return fgui.set_attribute(propertys, "label", fgui.get_property(node, "label", "string", state));
+		},
 		defaultItem:function(fgui:FGUI, propertys:Object, node: ENode, state:string) {
-			return fgui.set_attribute(propertys, "defaultItem", fgui.transform_url(fgui.get_property(node, "itemRendererSkinName", "string", state), "component"));
+			let property = "skinName";
+			switch(node.getName()){
+				case "List":
+				case "TabBar":
+					property = "itemRendererSkinName";
+					break;
+			}
+			let skinName = fgui.get_property(node, property, "string", state);
+			if(skinName){
+				return fgui.set_attribute(propertys, "defaultItem", fgui.transform_url(skinName, "component"));
+			}
+			return propertys;
 		},
 	};
 	protected _processor = {
@@ -780,17 +821,17 @@ export class FGUI
 					basename = basename.substring(0, lastindex);
 				}
 				skin = basename;
-			}else{
-				skin = "";
 			}
 		}
 		return skin;
 	}
 
 	protected transform_url(resname:string, type:string) : string {
-		resname = this.transform_skin_name(resname);
+		if(type === "component") {
+			resname = this.transform_skin_name(resname);
+		}
 		let package_data = this.find_package(resname, type);
-		return package_data ? `ui://`.concat(package_data.id, package_data[type][resname].src) : `ui://`.concat(resname);
+		return package_data ? `ui://`.concat(package_data.id, package_data[type][resname].src) : resname;
 	}
 
 	protected transform_color(color:string) : string {
