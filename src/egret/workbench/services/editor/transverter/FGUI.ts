@@ -19,22 +19,22 @@ export const IFGUI = createDecorator<FGUI>("FGUI");
  */
 export class FGUI
 {
-	protected _groups = {};
+	protected _groups = null;
 	protected _states = null;
-	protected _current_group = "";
+	protected _cur_group = "";
 	protected _attributes_processor = {
-		id:function(fgui:FGUI, propertys:Object, node: ENode, state:string) {
+		id:function(fgui:FGUI, propertys:Object, node: ENode, state:string) : any {
 			let value = fgui.get_property(node, "id", "string", state);
-			propertys["id"] = value ? value : node.getName();
+			return fgui.set_attribute(propertys, "id", value ? value : node.getName());
 		},
-		name:function(fgui:FGUI, propertys:Object, node: ENode, state:string) {
-			propertys["name"] = fgui.get_property(node, "id", "string", state);
+		name:function(fgui:FGUI, propertys:Object, node: ENode, state:string) : any {
+			return fgui.set_attribute(propertys, "name", fgui.get_property(node, "id", "string", state));
 		},
-		xy:function(fgui:FGUI, propertys:Object, node: ENode, state:string) {
+		xy:function(fgui:FGUI, propertys:Object, node: ENode, state:string) : any {
 			let x = 0;
 			let y = 0;
 			if(node.getName() != "Group") {
-				let group = fgui._groups[fgui._current_group];
+				let group = fgui._groups[fgui._cur_group];
 				while(group) {
 					x = x + group["x"];
 					y = y + group["y"];
@@ -43,9 +43,9 @@ export class FGUI
 			}
 			x = x + fgui.get_property(node, "x", "int", state);
 			y = y + fgui.get_property(node, "y", "int", state);
-			propertys["xy"] = x.toString() + ',' + y.toString();
+			return fgui.set_attribute(propertys, "xy", x.toString() + ',' + y.toString());
 		},
-		size:function(fgui:FGUI, propertys:Object, node: ENode, state:string) {
+		size:function(fgui:FGUI, propertys:Object, node: ENode, state:string) : any {
 			let sidePair = propertys["sidePair"];
 			if(!sidePair){
 				sidePair = "";
@@ -104,154 +104,166 @@ export class FGUI
 			}
 
 			if(sidePair){
-				propertys["sidePair"] = sidePair;
+				propertys = fgui.set_attribute(propertys, "relation", sidePair);
 			}
 
 			const instance = node.getInstance();
 			width = fgui._property_formater["int"](instance["width"]);
 			height = fgui._property_formater["int"](instance["height"]);
-			propertys["size"] = (width.toString().concat(",", height.toString()));
+			return fgui.set_attribute(propertys, "size", (width.toString().concat(",", height.toString())));
 		},
-		group:function(fgui:FGUI, propertys:Object, node: ENode, state:string) {
-			propertys["group"] = fgui._current_group;
+		group:function(fgui:FGUI, propertys:Object, node: ENode, state:string) : any {
+			return fgui.set_attribute(propertys, "group", fgui._cur_group);
 		},
-		visible:function(fgui:FGUI, propertys:Object, node: ENode, state:string) {
+		visible:function(fgui:FGUI, propertys:Object, node: ENode, state:string) : any {
 			let value = fgui.get_property(node, "visible", "string", state);
 			if(value && value.toString().toLowerCase() === "false") {
-				propertys["visible"] = "false";
+				propertys = fgui.set_attribute(propertys, "visible", "false");
+			}else if(state){
+				let includeIn = fgui.get_property(node, "includeIn", "string", "");
+				if(includeIn) {
+					let splits = includeIn.split(',');
+					if(splits.indexOf(state) < 0) {
+						propertys = fgui.set_attribute(propertys, "visible", "false");
+					}
+				}
 			}
+			return propertys;
 		},
-		color:function(fgui:FGUI, propertys:Object, node: ENode, state:string) {
-			propertys["color"] = fgui.transform_color(node,{
+		color:function(fgui:FGUI, propertys:Object, node: ENode, state:string) : any {
+			return fgui.set_attribute(propertys, "color", fgui.transform_color(node,{
 				BitmapLabel:{default:"#FFFFFF"},
 				Label:{param:"textColor", default:"#FFFFFF"},
-			}, state);
+			}, state));
 		},
-		strokeColor:function(fgui:FGUI, propertys:Object, node: ENode, state:string) {
-			propertys["strokeColor"] = fgui.transform_color(node,{
+		strokeColor:function(fgui:FGUI, propertys:Object, node: ENode, state:string) : any {
+			return fgui.set_attribute(propertys, "strokeColor", fgui.transform_color(node,{
 				Label:{param:"strokeColor"},
-			}, state);
+			}, state));
 		},
-		type:function(fgui:FGUI, propertys:Object, node: ENode, state:string) {
+		type:function(fgui:FGUI, propertys:Object, node: ENode, state:string) : any {
 			let name = node.getName();
 			if(name === "Rect") {
-				propertys["type"] = "rect";
+				propertys = fgui.set_attribute(propertys, "type", "rect");
 			}else if(name === "Object") {
-				propertys["type"] = node.getType();
+				propertys = fgui.set_attribute(propertys, "type", node.getType());
 			}
+			return propertys;
 		},
-		corner:function(fgui:FGUI, propertys:Object, node: ENode, state:string) {
+		corner:function(fgui:FGUI, propertys:Object, node: ENode, state:string) : any {
 			let name = node.getName();
 			if(name === "Rect") {
 				let ellipseWidth = fgui.get_property(node, 'ellipseWidth', 'int', state);
 				if(ellipseWidth != 0) {
-					propertys["corner"] = ellipseWidth;
-					return;
+					return fgui.set_attribute(propertys, "corner", ellipseWidth);
 				}
 
 				let ellipseHeight = fgui.get_property(node, 'ellipseHeight', 'int', state);
 				if(ellipseHeight) {
-					propertys["corner"] = ellipseHeight;
-					return;
+					return fgui.set_attribute(propertys, "corner", ellipseHeight);
 				}
 			}
+			return propertys;
 		},
-		mode:function(fgui:FGUI, propertys:Object, node: ENode, state:string) {
+		mode:function(fgui:FGUI, propertys:Object, node: ENode, state:string) : any {
 			let name = node.getName();
 			switch(name) {
 				case "RadioButton":
-					propertys["mode"] = "Radio";
-					break;
+					return fgui.set_attribute(propertys, "mode", "Radio");
 				case "CheckBox":
-					propertys["mode"] = "Check";
-					break;
+					return fgui.set_attribute(propertys, "mode", "Check");
 			}
+			return propertys;
 		},
-		src:function(fgui:FGUI, propertys:Object, node: ENode, state:string) {
-			propertys["src"] =  fgui.transform_src(node, state);
+		src:function(fgui:FGUI, propertys:Object, node: ENode, state:string) : any {
+			return fgui.set_attribute(propertys, "src", fgui.transform_src(node, state));
 		},
-		pkg:function(fgui:FGUI, propertys:Object, node: ENode, state:string) {
-			propertys["pkg"] = fgui.transform_pkg(node, state);
+		pkg:function(fgui:FGUI, propertys:Object, node: ENode, state:string) : any {
+			return fgui.set_attribute(propertys, "pkg", fgui.transform_pkg(node, state));
 		},
-		fileName:function(fgui:FGUI, propertys:Object, node: ENode, state:string) {
-			propertys["fileName"] = fgui.transform_fileName(node, state);
+		fileName:function(fgui:FGUI, propertys:Object, node: ENode, state:string) : any {
+			return fgui.set_attribute(propertys, "fileName", fgui.transform_fileName(node, state));
 		},
-		bold:function(fgui:FGUI, propertys:Object, node: ENode, state:string) {
-			propertys["bold"] = fgui.get_property(node, "bold", "boolean", state);
+		bold:function(fgui:FGUI, propertys:Object, node: ENode, state:string) : any {
+			return fgui.set_attribute(propertys, "bold", fgui.get_property(node, "bold", "boolean", state));
 		},
-		text:function(fgui:FGUI, propertys:Object, node: ENode, state:string) {
-			propertys["text"] = fgui.get_property(node, "text", "string", state);
+		text:function(fgui:FGUI, propertys:Object, node: ENode, state:string) : any {
+			return fgui.set_attribute(propertys, "text", fgui.get_property(node, "text", "string", state));
 		},
-		value:function(fgui:FGUI, propertys:Object, node: ENode, state:string) {
-			propertys["value"] = fgui.get_property(node, "value", "int", state);
+		value:function(fgui:FGUI, propertys:Object, node: ENode, state:string) : any {
+			return fgui.set_attribute(propertys, "value", fgui.get_property(node, "value", "int", state));
 		},
-		alpha:function(fgui:FGUI, propertys:Object, node: ENode, state:string) {
+		alpha:function(fgui:FGUI, propertys:Object, node: ENode, state:string) : any {
 			let key = "alpha";
 			if(node.getName() === "Rect") {
 				key = "fillAlpha";
 			}
-			propertys["alpha"] = fgui.get_property(node, key, "float", state);
+			return fgui.set_attribute(propertys, "alpha", fgui.get_property(node, key, "float", state));
 		},
-		italic:function(fgui:FGUI, propertys:Object, node: ENode, state:string) {
-			propertys["italic"] = fgui.get_property(node, "italic", "boolean", state);
+		italic:function(fgui:FGUI, propertys:Object, node: ENode, state:string) : any {
+			return fgui.set_attribute(propertys, "italic", fgui.get_property(node, "italic", "boolean", state));
 		},
-		fontSize:function(fgui:FGUI, propertys:Object, node: ENode, state:string) {
-			propertys["fontSize"] = fgui.get_property(node, "size", "int", state);
+		fontSize:function(fgui:FGUI, propertys:Object, node: ENode, state:string) : any {
+			return fgui.set_attribute(propertys, "fontSize", fgui.get_property(node, "size", "int", state));
 		},
-		stroke:function(fgui:FGUI, propertys:Object, node: ENode, state:string) {
-			propertys["stroke"] = fgui.get_property(node, "stroke", "int", state);
+		stroke:function(fgui:FGUI, propertys:Object, node: ENode, state:string) : any {
+			return fgui.set_attribute(propertys, "stroke", fgui.get_property(node, "stroke", "int", state));
 		},
-		font:function(fgui:FGUI, propertys:Object, node: ENode, state:string) {
+		font:function(fgui:FGUI, propertys:Object, node: ENode, state:string) : any {
 			if(node.getName() === "BitmapLabel") {
 				let font = fgui.get_property(node, "font", "string", state);
-				propertys["font"] = fgui.transform_url(font, "font");
+				return fgui.set_attribute(propertys, "font", fgui.transform_url(font, "font"));
 			}else{
-				propertys["font"] = fgui.get_property(node, "fontFamily", "string", state);
+				return fgui.set_attribute(propertys, "font", fgui.get_property(node, "fontFamily", "string", state));
 			}
+			return propertys;
 		},
-		align:function(fgui:FGUI, propertys:Object, node: ENode, state:string) {
-			propertys["align"] = fgui.get_property(node, "textAlign", "string", state);
+		align:function(fgui:FGUI, propertys:Object, node: ENode, state:string) : any {
+			return fgui.set_attribute(propertys, "align", fgui.get_property(node, "textAlign", "string", state));
 		},
-		vAlign:function(fgui:FGUI, propertys:Object, node: ENode, state:string) {
-			propertys["vAlign"] = fgui.get_property(node, "verticalAlign", "string", state);
+		vAlign:function(fgui:FGUI, propertys:Object, node: ENode, state:string) : any {
+			return fgui.set_attribute(propertys, "vAlign", fgui.get_property(node, "verticalAlign", "string", state));
 		},
-		minimum:function(fgui:FGUI, propertys:Object, node: ENode, state:string) {
-			propertys["minimum"] = fgui.get_property(node, "minimum", "int", state);
+		minimum:function(fgui:FGUI, propertys:Object, node: ENode, state:string) : any {
+			return fgui.set_attribute(propertys, "minimum", fgui.get_property(node, "minimum", "int", state));
 		},
-		maximum:function(fgui:FGUI, propertys:Object, node: ENode, state:string) {
-			propertys["maximum"] = fgui.get_property(node, "maximum", "int", state);
+		maximum:function(fgui:FGUI, propertys:Object, node: ENode, state:string) : any {
+			return fgui.set_attribute(propertys, "maximum", fgui.get_property(node, "maximum", "int", state));
 		},
-		rotation:function(fgui:FGUI, propertys:Object, node: ENode, state:string) {
-			propertys["rotation"] = fgui.get_property(node, "rotation", "int", state);
+		rotation:function(fgui:FGUI, propertys:Object, node: ENode, state:string) : any {
+			return fgui.set_attribute(propertys, "rotation", fgui.get_property(node, "rotation", "int", state));
 		},
-		touchable:function(fgui:FGUI, propertys:Object, node: ENode, state:string) {
-			propertys["touchable"] = fgui.get_property(node, "touchEnabled", "boolean", state);
+		touchable:function(fgui:FGUI, propertys:Object, node: ENode, state:string) : any {
+			return fgui.set_attribute(propertys, "touchable", fgui.get_property(node, "touchEnabled", "boolean", state));
 		},
-		letterSpacing:function(fgui:FGUI, propertys:Object, node: ENode, state:string) {
-			propertys["letterSpacing"] = fgui.get_property(node, "letterSpacing", "int", state);
+		letterSpacing:function(fgui:FGUI, propertys:Object, node: ENode, state:string) : any {
+			return fgui.set_attribute(propertys, "letterSpacing", fgui.get_property(node, "letterSpacing", "int", state));
 		},
-		skew:function(fgui:FGUI, propertys:Object, node: ENode, state:string) {
+		skew:function(fgui:FGUI, propertys:Object, node: ENode, state:string) : any {
 			let skewX = fgui.get_property(node, "skewX", "int", state);
 			let skewY = fgui.get_property(node, "skewY", "int", state);
 			if(skewX != 0 || skewY != 0) {
-				propertys["skew"] = skewX.toString().concat(",", skewY);
+				propertys = fgui.set_attribute(propertys, "skew", skewX.toString().concat(",", skewY));
 			}
+			return propertys;
 		},
-		scale:function(fgui:FGUI, propertys:Object, node: ENode, state:string) {
+		scale:function(fgui:FGUI, propertys:Object, node: ENode, state:string) : any {
 			let scaleX = fgui.get_property(node, "scaleX", "float", state);
 			let scaleY = fgui.get_property(node, "scaleY", "float", state);
 			if(scaleX != 0 || scaleY != 0) {
-				propertys["scale"] = scaleX.toString().concat(",", scaleY);
+				return fgui.set_attribute(propertys, "scale", scaleX.toString().concat(",", scaleY));
 			}
+			return propertys;
 		},
-		restrictSize:function(fgui:FGUI, propertys:Object, node: ENode, state:string) {
+		restrictSize:function(fgui:FGUI, propertys:Object, node: ENode, state:string) : any {
 			let minWidth = fgui.get_property(node, "minWidth", "int", state);
 			let maxWidth = fgui.get_property(node, "maxWidth", "int", state);
 			let minHeight = fgui.get_property(node, "minHeight", "int", state);
 			let maxHeight = fgui.get_property(node, "maxHeight", "int", state);
 			if(minWidth != 0 || maxWidth != 0 || minHeight != 0 || maxHeight != 0) {
-				propertys["restrictSize"] = minWidth.toString().concat(",", maxWidth, ",", minHeight, ",", maxHeight);
+				return fgui.set_attribute(propertys, "restrictSize", minWidth.toString().concat(",", maxWidth, ",", minHeight, ",", maxHeight));
 			}
+			return propertys;
 		},
 		pivot:function(fgui:FGUI, propertys:Object, node: ENode, state:string) {
 			let fix_abled = false;
@@ -272,8 +284,9 @@ export class FGUI
 				height = node.getInstance()["height"];
 			}
 			if(width > 0 && height > 0 && (anchorOffsetX != 0 || anchorOffsetY != 0)) {
-				propertys["pivot"] = (anchorOffsetX / width).toFixed(3).toString().concat(",", (anchorOffsetY / height).toFixed(3));
+				return fgui.set_attribute(propertys, "pivot", (anchorOffsetX / width).toFixed(3).toString().concat(",", (anchorOffsetY / height).toFixed(3)));
 			}
+			return propertys;
 		},
 		fillColor:function(fgui:FGUI, propertys:Object, node: ENode, state:string) {
 			switch(node.getName()) {
@@ -287,66 +300,62 @@ export class FGUI
 					if(!color) {
 						color = "0x000000";
 					}
-					propertys["fillColor"] = "#".concat(alpha.toString(16), color.substring(2));
+					return fgui.set_attribute(propertys, "fillColor", "#".concat(alpha.toString(16), color.substring(2)));
 				}
 				break;
 			}
+			return propertys;
 		},
 		lineColor:function(fgui:FGUI, propertys:Object, node: ENode, state:string) {
 			switch(node.getName()) {
 				case "Rect": {
 					let alpha = Math.floor(fgui.get_property(node, "strokeAlpha", "float", state) * 255);
-					if(alpha < 1) {
-						return;
+					if(alpha > 0) {
+						let color = fgui.get_property(node, "strokeColor", "string", state);
+						if(color) {
+							return fgui.set_attribute(propertys, "lineColor", "#".concat(alpha.toString(16), color.substring(1)));
+						}
 					}
-
-					let color = fgui.get_property(node, "strokeColor", "string", state);
-					if(!color) {
-						return;
-					}
-					propertys["lineColor"] = "#".concat(alpha.toString(16), color.substring(1));
 				}
 				break;
 			}
+			return propertys;
 		},
 		scale9Grid:function(fgui:FGUI, propertys:Object, node: ENode, state:string) {
 			let key = fgui.get_property(node, "source", "string", state);
-			if(!key) {
-				return;
-			}
-
-			let scale9Grid = fgui.get_property(node, "scale9Grid", "string", state);
-			if(!scale9Grid) {
-				return;
-			}
-
-			let package_data = fgui.find_package(key, "image");
-			if(package_data) {
-				let xml = package_data.image[key].xml;
-				if(!xml.attributes["scale9grid"]) {
-					package_data.dirty = true;
-					xmlTagUtil.setAttribute(xml, "scale", "9grid");
-					xmlTagUtil.setAttribute(xml, "scale9grid", scale9Grid);
+			if(key) {
+				let scale9Grid = fgui.get_property(node, "scale9Grid", "string", state);
+				if(scale9Grid) {
+					let package_data = fgui.find_package(key, "image");
+					if(package_data) {
+						let xml = package_data.image[key].xml;
+						if(!xml.attributes["scale9grid"]) {
+							package_data.dirty = true;
+							xmlTagUtil.setAttribute(xml, "scale", "9grid");
+							xmlTagUtil.setAttribute(xml, "scale9grid", scale9Grid);
+						}
+					}
 				}
 			}
+			return propertys;
 		},
 		grayed:function(fgui:FGUI, propertys:Object, node: ENode, state:string) {
-			return;
+			return propertys;
 		},
 		autoSize:function(fgui:FGUI, propertys:Object, node: ENode, state:string) {
 			switch(node.getName()) {
 				case "Label":
 				case "BitmapLabel":
-					propertys["autoSize"] = "none";
-					break;
+					return fgui.set_attribute(propertys, "autoSize", "none");
 			}
+			return propertys;
 		},
 		input:function(fgui:FGUI, propertys:Object, node: ENode, state:string) {
 			switch(node.getName()) {
 				case "EditableText":
-					propertys["input"] = "true";
-					break;
+					return fgui.set_attribute(propertys, "input", "true");
 			}
+			return propertys;
 		},
 	};
 	protected _processor = {
@@ -354,16 +363,15 @@ export class FGUI
 		ns1:{
 			default:{
 				name_fix:"component",
-				attributes_processor:{
-					size:function(fgui:FGUI, propertys:Object, node: ENode, state:string) {
-						const instance = node.getInstance();
-						let width = fgui._property_formater["int"](instance["width"]);
-						let height = fgui._property_formater["int"](instance["height"]);
-						propertys["size"] = (width.toString().concat(",", height.toString()));
-					},
-				},
-				post_processor:function(fgui:FGUI, space:string, node: ENode, state:string) : any {
-					return {};
+				post_processor:function(fgui:FGUI, content_data:Object, node: ENode) {
+					let content = content_data["content"];
+					let propertys = content_data["propertys"]["_"];
+					if(!propertys["src"]) {
+						content_data["component"] = "loader";
+					}
+					content = content.concat(fgui.parse_children(content_data, node));
+					content_data["content"] = content;
+					return fgui.content_data_tostring(content_data);
 				},
 			}
 		},
@@ -371,7 +379,7 @@ export class FGUI
 		default:{
 			Skin:{
 				name_fix:"component",
-				pre_processor:function(fgui:FGUI, space:string, node: ENode, state:string) : any {
+				pre_processor:function(fgui:FGUI, content_data:Object, node: ENode) {
 					if(!node.getParent()) {
 						let states = fgui.get_property(node, "states", "string", "");
 						if(states) {
@@ -379,68 +387,73 @@ export class FGUI
 						}
 					}
 				},
-				post_processor:function(fgui:FGUI, space:string, node: ENode, state:string) : any {
+				post_processor:function(fgui:FGUI, content_data:Object, node: ENode) : string {
 					//控制器
-					let children = "";
+					let content = "";
 					for (const key in fgui._states) {
-						children = children.concat("\t", `<controller name="`, key, `" pages="`);
+						content = content.concat("\t", `<controller name="`, key, `" pages="`);
 						let states = fgui._states[key];
 						for(let index = 0; index < states.length; index++) {
-							children = children.concat((index + 1).toString(), ",", states[index], ",");
+							content = content.concat((index + 1).toString(), ",", states[index], ",");
 						}
-						children = children.substring(0, children.length - 1);
-						children = children.concat(`" selected="0"/>\n`);
+						content = content.substring(0, content.length - 1);
+						content = content.concat(`" selected="0"/>\n`);
 					}
-					children = children.concat("\t<displayList>\n");
-					children = children.concat(fgui.parse_children(space + "\t", node, state));
-					children = children.concat("\t</displayList>\n");
-					return {children:children};
+					content = content.concat("\t<displayList>\n");
+					let space = content_data["space"];
+					content_data["space"] = space + "\t";
+					content = content.concat(fgui.parse_children(content_data, node));
+					content_data["space"] = space;
+					content = content.concat("\t</displayList>\n");
+					content_data["content"] = content;
+					return fgui.content_data_tostring(content_data);
 				},
 			},
 			Group:{
-				pre_processor:function(fgui:FGUI, space:string, node: ENode, state:string) : any {
-					return {children:fgui.transform_group(space, node, state)};
+				pre_processor:function(fgui:FGUI, content_data:Object, node: ENode){
+					fgui.pre_process_group(content_data, node);
 				},
-				post_processor:function(fgui:FGUI, space:string, node: ENode, state:string) : any {
-					return {};
+				post_processor:function(fgui:FGUI, content_data:Object, node: ENode) : string{
+					return fgui.post_process_group(content_data, node);
 				},
 			},
 			Scroller:{
-				pre_processor:function(fgui:FGUI, space:string, node: ENode, state:string) : any {
-					return {children:fgui.transform_group(space, node, state)};
+				pre_processor:function(fgui:FGUI, content_data:Object, node: ENode) {
+					fgui.pre_process_group(content_data, node);
 				},
-				post_processor:function(fgui:FGUI, space:string, node: ENode, state:string) : any {
-					return {};
+				post_processor:function(fgui:FGUI, content_data:Object, node: ENode) : string{
+					return fgui.post_process_group(content_data, node);
 				},
 			},
 
 			CheckBox:{
 				name_fix:"component",
-				post_processor:function(fgui:FGUI, space:string, node: ENode, state:string) : any {
-					let content = "";
-					content = content.concat(space, `\t<Button mode="Check"/>\n`);
-					return {children:content};
+				post_processor:function(fgui:FGUI, content_data:Object, node: ENode) : string {
+					content_data["content"] = content_data["content"].concat(content_data["space"], `\t<Button mode="Check"/>\n`);
+					return fgui.content_data_tostring(content_data);
 				},
 			},
 			RadioButton:{
 				name_fix:"component",
-				post_processor:function(fgui:FGUI, space:string, node: ENode, state:string) : any {
-					let content = "";
-					content = content.concat(space, `\t<Button mode="Radio"/>\n`);
-					return {children:content};
+				post_processor:function(fgui:FGUI, content_data:Object, node: ENode) : string {
+					content_data["content"] = content_data["content"].concat(content_data["space"], `\t<Button mode="Radio"/>\n`);
+					return fgui.content_data_tostring(content_data);
 				},
 			},
 
 			List:{
 				name_fix:"list",
-				post_processor:function(fgui:FGUI, space:string, node: ENode, state:string) : any {
-					return fgui.process_list(space, node, false, state);
+				post_processor:function(fgui:FGUI, content_data:Object, node: ENode) : string {
+					fgui.process_list(content_data, node);
+					return fgui.content_data_tostring(content_data);
 				},
 			},
 			TabBar:{
 				name_fix:"list",
-				post_processor:function(fgui:FGUI, space:string, node: ENode, state:string) : any {
-					return fgui.process_list(space, node, true, state);
+				post_processor:function(fgui:FGUI, content_data:Object, node: ENode) : string {
+					content_data["tabbar"] = true;
+					fgui.process_list(content_data, node);
+					return fgui.content_data_tostring(content_data);
 				},
 			},
 
@@ -456,8 +469,11 @@ export class FGUI
 					EditableText:"text",
 				},
 
-				post_processor:function(fgui:FGUI, space:string, node: ENode, state:string) : any {
-					return {children:fgui.parse_children(space, node, state)};
+				post_processor:function(fgui:FGUI, content_data:Object, node: ENode) : string {
+					let content = content_data["content"];
+					content = content.concat(fgui.parse_children(content_data, node));
+					content_data["content"] = content;
+					return fgui.content_data_tostring(content_data);
 				},
 			}
 		}
@@ -515,88 +531,122 @@ export class FGUI
 		gearLook:{params:["alpha","rotation","grayed","touchable"], default:["1","0","0","0"]},
 	};
 
-	protected build_gear_content(space, node: ENode, processor:Object) : string {
-		let controllers = this._states["default"]
-		if(!controllers || controllers.length <= 0) {
-			return "";
-		}
-
-		let includeIn = this.get_property(node, "includeIn", "string", null);
-		if(!node.hasMutipleStates() && !includeIn) {
-			return "";
-		}
-
-		let content = "";
-		space = space.concat("\t");
-		//添加 gearDisplay
-		if(includeIn) {
-			let gearDisplay = includeIn.split(',');
-			content = content.concat(space, `<gearDisplay controller="default" pages="`);
-			for(let index = 0; index < gearDisplay.length; index ++) {
-				content = content.concat(controllers.indexOf(gearDisplay[index]) + 1, ",");
+	protected _gear_attributes_define = {
+		relation:function(fgui:FGUI, content_data:Object) : string {
+			let attributes = content_data["propertys"]["_"];
+			if(!attributes){
+				return null;
 			}
-			content = content.substring(0, content.length - 1);
-			content = content.concat(`"/>\n`);
-		}
+			let relation = attributes["relation"];
+			if(!relation) {
+				return null;
+			}
+			return content_data["space"].concat(`\t<relation target="" sidePair="`, relation, `"/>\n`);
+		},
+		gearXY:function(fgui:FGUI, content_data:Object) : string {
+			return fgui.build_gear_item("gearXY", content_data, ["xy"], ["0,0"]);
+		},
+		gearSize:function(fgui:FGUI, content_data:Object) : string {
+			return fgui.build_gear_item("gearSize", content_data, ["size","scale"], ["0,0","1,1"]);
+		},
+		gearColor:function(fgui:FGUI, content_data:Object) : string {
+			return fgui.build_gear_item("gearColor", content_data, ["color"], ["#ffffff"]);
+		},
+		gearLook:function(fgui:FGUI, content_data:Object) : string {
+			return fgui.build_gear_item("gearLook", content_data, ["alpha","rotation","grayed","touchable"], ["1","0","0","0"]);
+		},
+	};
 
-		//添加其它属性
-		let propertys = {};
-		let gear_amount = {};
-		const attributes_processor = processor["attributes_processor"];
-		for (const gear in this._gear_config) {
-			let config = this._gear_config[gear];
-			let params = config.params;
-			let default_value = "";
-			for(let index = 0; index < params.length; index++) {
-				const key = params[index];
-				let processor_item = this._attributes_processor[key];
-				if(attributes_processor && attributes_processor[key]) {
-					processor_item = attributes_processor[key];
-				}
-				processor_item(this, propertys, node, "");
-				let value = propertys[key];
-				value = value ? value : config.default[index];
-				default_value = default_value.concat(value, ",");
+	protected check_gear(content_data:Object, names:Array<string>, defs:Array<string>) : boolean {
+		let propertys = content_data["propertys"];
+		let propertys_default = propertys["_"];
+		for (const state_name in this._states) {
+			if(state_name === "default") {
+				continue;
 			}
 
-			for (const state in this._states) {
-				let pages = "";
-				let values = "";
-				controllers = this._states[state];
-				for(let stateid = 0; stateid < controllers.length; stateid ++) {
-					let values_state = "";
-					let state_chunk = controllers[stateid];
-					for(let index = 0; index < params.length; index++) {
-						const key = params[index];
-						let processor_item = this._attributes_processor[key];
-						if(attributes_processor && attributes_processor[key]) {
-							processor_item = attributes_processor[key];
+			this._states[state_name].forEach(state_item => {
+				let key = state_name.concat('_', state_item);
+				let propertys_item = propertys[key]
+				if(propertys_item) {
+					for(let i = 0; i < names.length; i ++) {
+						let name = names[i];
+						let val0 = propertys_item[name];
+						val0 = val0 ? val0 : defs[i];
+						let val1 = propertys_default[name];
+						val1 = val1 ? val1 : defs[i];
+						if(val0 !== val1){
+							return true;
 						}
-						processor_item(this, propertys, node, state_chunk);
-						let value = propertys[key];
-						value = value ? value : config.default[index];
-						values_state = values_state.concat(value, ",");
 					}
+				}
+			});
+		}
+		return false;
+	}
 
-					if(values_state != default_value) {
-						values_state = values_state.substring(0, values_state.length - 1);
+	protected build_gear_item(gear_name:string, content_data:Object, names:Array<string>, defs:Array<string>) : string {
+		if(!this.check_gear(content_data, names, defs)) {
+			return null;
+		}
 
-						values = values.concat(values_state, "|");
-						pages = pages.concat((stateid + 1).toString(), ",");
+		let gear_count = 0;
+		let gear_content = "";
+		let space = content_data["space"];
+		let propertys = content_data["propertys"];
+		let propertys_default = propertys["_"];
+		for (const state_name in this._states) {
+			if(state_name === "default") {
+				continue;
+			}
+
+			let item_names = "";
+			let gear_content_state0 = "";
+			let gear_content_state1 = "";
+			this._states[state_name].forEach(state_item => {
+				let content0 = "";
+				let content1 = "";
+				let key = state_name.concat('_', state_item);
+				let propertys_item = propertys[key]
+				if(propertys_item) {
+					for(let i = 0; i < names.length; i ++) {
+						let name = names[i];
+						let val0 = propertys_item[name];
+						val0 = val0 ? val0 : defs[i];
+						content0 = content0.concat(val0, ",");
+						let val1 = propertys_default[name];
+						val1 = val1 ? val1 : defs[i];
+						content1 = content1.concat(val1, ",");
 					}
 				}
 
-				if(values) {
-					let amount = gear_amount[gear];
-					if(!amount) {
-						amount = 0;
-					}
-					gear_amount[gear] = amount + 1;
-					pages = pages.substring(0, pages.length - 1);
-					values = values.substring(0, values.length - 1);
-					default_value = default_value.substring(0, default_value.length - 1);
-					content = content.concat(space,`<`, gear, amount > 0 ? amount : "", ` controller="`, state, `" pages="`,pages, `" values="`, values, `" default="`, default_value, `"/>\n`);
+				if(content0 !== content1) {
+					item_names = item_names.concat(state_item, ",");
+					content0 = content0.substring(0, content0.length - 1);
+					gear_content_state0 = gear_content_state0.concat(content0, "|");
+					content1 = content1.substring(0, content1.length - 1);
+					gear_content_state1 = gear_content_state1.concat(content1, "|");
 				}
+			});
+
+			if(item_names) {
+				let count = gear_count > 0 ? gear_count.toString() : "";
+				item_names = item_names.substring(0, item_names.length - 1);
+				gear_content_state0 = gear_content_state0.substring(0, gear_content_state0.length - 1);
+				gear_content_state1 = gear_content_state1.substring(0, gear_content_state1.length - 1);
+				gear_content = gear_content.concat(space, `\t<`, gear_name, count, ` controller="`, state_name, 
+				`" pages="`,item_names, `" values="`, gear_content_state0, `" default="`, gear_content_state1, `"/>\n`);
+			}
+		}
+		return gear_content;
+	}
+
+	protected build_gear_content(content_data:Object) : string {
+		let content = "";
+		for (const key in this._gear_attributes_define) {
+			let gear_item = this._gear_attributes_define[key](this, content_data);
+			if(gear_item){
+				content = content.concat(gear_item);
 			}
 		}
 		return content;
@@ -629,8 +679,10 @@ export class FGUI
 		return content;
 	}
 
-	protected process_list(space:string, node: ENode, tabbar:boolean, state:string) : any {
+	protected process_list(content_data:Object, node: ENode) : any {
 		let tag:sax.Tag = node.getXml();
+		let space = content_data["space"];
+		let tabbar = content_data["tabbar"];
 		let property = this.build_property_xml("defaultItem", this.transform_url(tag.attributes["itemRendererSkinName"], "component"));
 
 		let list_content = "";
@@ -670,7 +722,7 @@ export class FGUI
 
 		if(tabbar_control_size > 0) {
 			//添加TabBar独占控制器
-			let id = this.get_property(node, "id", "string", state);
+			let id = this.get_property(node, "id", "string", "");
 			if(!id) {
 				id = "TabBarControl";
 			}
@@ -716,6 +768,8 @@ export class FGUI
 					basename = basename.substring(0, lastindex);
 				}
 				skin = basename;
+			}else{
+				skin = "";
 			}
 		}
 		return skin;
@@ -817,9 +871,8 @@ export class FGUI
 		return null;
 	}
 
-	protected transform_group(space:string, node: ENode, state:string) : string {
-		let content = "";
-		let group_prev = this._current_group;
+	protected pre_process_group(content_data:Object, node: ENode) {
+		content_data["pre_group"] = this._cur_group;
 		let id = this.get_property(node, "id", "string", null);
 		let id_index = 0;
 		while(!id || this._groups[id]) {
@@ -835,30 +888,28 @@ export class FGUI
 		group["id"] = id;
 		group["x"] = this.get_property(node, "x", "int", null);
 		group['y'] = this.get_property(node, "y", "int", null);
-		group["group"] = group_prev;
+		group["group"] = content_data["pre_group"];
 		this._groups[id] = group;
+		content_data["cur_group"] = id;
+	}
 
-		//解析子节点
-		this._current_group = id;
-		let child_count = this.get_child_count(node);
-		if(child_count > 0) {
-			let container = node as EContainer;
-			for (let index = 0; index < child_count; index++) {
-				const child = container.getNodeAt(index) as ENode;
-				if(child) {
-					content = content.concat(this.build_component(space, child, state));
-				}
-			}
-		}
-		//添加Group信息
-		let group_content = space.concat(`<group id="`, id, `" name="`, id, `" xy="`, group["x"], `,`, group["y"], `" group="`, group["group"], `" advanced="true"`);
-		let gear = this.build_gear_content(space, node, this._processor.default.Group);
-		if(gear){
-			group_content = group_content.concat(`>\n`, space, `\t`, gear, space, `</group>\n`);
+	protected post_process_group(content_data:Object, node: ENode) : string {
+		let space = content_data["space"];
+		let content = content_data["content"];
+		let attributes = content_data["propertys"]["_"];
+		attributes["advanced"] = true;
+		let gear_content = this.build_gear_content(content_data);
+		this._cur_group = content_data["cur_group"];
+		content = content.concat(this.parse_children(content_data, node));
+		this._cur_group = content_data["pre_group"];
+		let group_content = space.concat(`<group `, this.build_attribute_content(content_data));
+		if(gear_content){
+			group_content = group_content.concat(">\n");
+			group_content = group_content.concat(gear_content);
+			group_content = group_content.concat(space, `</group>\n`);
 		}else{
-			group_content = group_content.concat(`/>\n`);
+			group_content = group_content.concat("/>\n");
 		}
-		this._current_group = group_prev;
 		return content.concat(group_content);
 	}
 
@@ -1066,7 +1117,7 @@ export class FGUI
 	public run(fileModel: IFileEditorModel): boolean {
 		this._states = {};
 		this._groups = {};
-		this._current_group = "";
+		this._cur_group = "";
 		if(fileModel) {
 			this.save(fileModel);
 			return true;
@@ -1120,7 +1171,7 @@ export class FGUI
 		}
 
 		let xml = `<?xml version="1.0" encoding="utf-8"?>\n`;
-		xml = xml.concat(this.build_component("", model.getRootNode() as ENode, ""));
+		xml = xml.concat(this.build_component("", model.getRootNode() as ENode));
 		fs.writeFileSync(filepath, xml, "utf8");
 	}
 
@@ -1136,23 +1187,107 @@ export class FGUI
 		return node instanceof EContainer ? node.getNumChildren() : 0;
 	}
 
-	protected parse_children(space:string, node: ENode, state:string) : string {
+	protected parse_children(content_data:Object, node: ENode) : string {
 		let content = "";
+		let space = content_data["space"];
+		if(content_data["component"]) {
+			space = space + "\t";
+		}
 		let child_count = this.get_child_count(node);
 		if(child_count > 0) {
 			let container = node as EContainer;
 			for (let index = 0; index < child_count; index++) {
 				const child = container.getNodeAt(index) as ENode;
 				if(child) {
-					content = content.concat(this.build_component(space + "\t", child, state));
+					content = content.concat(this.build_component(space, child));
 				}
 			}
 		}
 		return content;
 	}
 
-	protected build_component(space:string, node: ENode, state:string) : string {
+	protected set_attribute(propertys:Object, key:string, value:any) : Object {
+		if(value != null) {
+			if(!propertys) {
+				propertys = {};
+			}
+			propertys[key] = value;
+		}
+		return propertys;
+	}
+
+	protected parse_attributes(content_data:Object, node: ENode, processor) {
+		let propertys = content_data["propertys"];
+		const attributes_processor = processor["attributes_processor"];
+		let parser = (state_name:string, state_item:string) => {
+			let key = state_name.concat('_', state_item)
+			let propertys_item = propertys[key];
+			for (const key in this._attributes_processor) {
+				let processor_item = this._attributes_processor[key];
+				if(attributes_processor && attributes_processor[key]) {
+					processor_item = attributes_processor[key];
+				}
+				propertys_item = processor_item(this, propertys_item, node, state_item);
+			}
+			propertys[key] = propertys_item;
+		};
+
+		parser("", "");	//获取默认属性
+		if(node.hasMutipleStates()) {
+			for (const state_name in this._states) {
+				let states = this._states[state_name];
+				states.forEach(state_item => {
+					parser(state_name, state_item);
+				});
+			}
+		}
+	}
+
+	protected build_attribute_content(content_data:Object) : string {
+		let attribute_content = null;
+		let propertys = content_data["propertys"]["_"];
+		if(propertys){
+			attribute_content = "";
+			for (const key in propertys) {
+				if(this._gear_attributes_define[key]) {
+					continue;
+				}
+				let val = propertys[key];
+				if(!val && key !== "id" && key !== "name") {
+					continue;
+				}
+				attribute_content = attribute_content.concat(' ', key, '="', val, '"');
+			}
+			return attribute_content;
+		}
+		return attribute_content;
+	}
+
+	protected content_data_tostring(content_data:Object) : string {
 		let content = "";
+		let space = content_data["space"];
+		let component = content_data["component"];
+		//生成属性文本内容
+		if(component) {
+			content = content.concat(space, "<", component,this.build_attribute_content(content_data));
+			let gear_content = this.build_gear_content(content_data);
+			if(content_data["content"] || gear_content){
+				content = content.concat('>\n');
+				content = content.concat(content_data["content"]);
+				content = content.concat(gear_content);
+				content = content.concat(space, `</`, component, ">\n");
+			}else{
+				content = content.concat('/>\n');
+			}
+		}else{
+			if(content_data["content"]){
+				content = content.concat(content_data["content"]);
+			}
+		}
+		return content;
+	}
+
+	protected build_component(space:string, node: ENode) : string {
 		if(node) {
 			var ns = node.getNs();
 			var name = node.getName();
@@ -1167,93 +1302,30 @@ export class FGUI
 				processor = processor.default;
 			}
 
-			//生成头
-			let comment_name = "";
+			//获取头信息
+			let component = "";
 			let name_fix = processor.name_fix;
 			if(name_fix) {
 				if(typeof(name_fix) === "string") {
-					comment_name = name_fix;
+					component = name_fix;
 				}else if(name_fix[name]){
-					comment_name = name_fix[name];
+					component = name_fix[name];
 				}
 			}
 
-			let gear = "";
-			let sidePair = "";
-			let pre_content = null;
-			let pre_processor = processor.pre_processor;
-			if(pre_processor) {
-				pre_content = pre_processor(this, space, node, state);
+			let content_data = {
+				space:space,
+				content:"",
+				propertys:{},
+				component:component,
+			};
+
+			if(processor.pre_processor) {
+				processor.pre_processor(this, content_data, node);
 			}
-
-			if(comment_name) {
-				content = content.concat(space, "<", comment_name);
-
-				//遍历属性
-				let propertys = {};
-				const attributes_processor = processor["attributes_processor"];
-				for (const key in this._attributes_processor) {
-					let processor_item = this._attributes_processor[key];
-					if(attributes_processor && attributes_processor[key]) {
-						processor_item = attributes_processor[key];
-					}
-					processor_item(this, propertys, node, "");
-				}
-				sidePair = propertys["sidePair"];
-				propertys["sidePair"] = null;
-
-				let property = "";
-				for (const key in propertys) {
-					let element = propertys[key];
-					if(key === "id" || key === "name" || element) {
-						property = property.concat(' ', key, '="', element, '"');
-					}
-				}
-				if(property){
-					content = content.concat(property);
-				}
-
-				//处理多控制器情况
-				gear = this.build_gear_content(space, node, processor);
-			}
-
-			//后处理
-			let result = processor.post_processor(this, space, node, state);
-			if(pre_content && pre_content.property) {
-				content = content.concat(pre_content.property);
-			}
-			if(result.property) {
-				content = content.concat(result.property);
-			}
-
-			if((pre_content && pre_content.children) || result.children || sidePair || gear) {
-				if(comment_name) {
-					content = content.concat(">\n");
-				}
-				
-				if(sidePair) {
-					content = content.concat(space, `\t`, `<relation target="" sidePair="`, sidePair, `"/>\n`);
-				}
-
-				if(gear) {
-					content = content.concat(gear);
-				}
-
-				if(pre_content && pre_content.children) {
-					content = content.concat(pre_content.children);
-				}
-
-				if(result.children) {
-					content = content.concat(result.children);
-				}
-
-				if(comment_name) {
-					content = content.concat(space, "</", comment_name, ">\n");
-				}
-			}else if(comment_name){
-				content = content.concat("/>\n");
-			}
+			this.parse_attributes(content_data, node, processor);
+			return processor.post_processor(this, content_data, node);
 		}
-		return content;
+		return "";
 	}
 }
