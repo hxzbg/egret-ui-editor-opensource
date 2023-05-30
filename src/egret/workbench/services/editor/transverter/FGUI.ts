@@ -664,6 +664,9 @@ export class FGUI
 			}
 			return content_data["space"].concat(`\t<relation target="" sidePair="`, relation, `"/>\n`);
 		},
+		gearDisplay:function(fgui:FGUI, content_data:Object) : string {
+			return fgui.build_gear_item("gearDisplay", content_data, ["visible"], ["true"]);
+		},
 		gearXY:function(fgui:FGUI, content_data:Object) : string {
 			return fgui.build_gear_item("gearXY", content_data, ["xy"], ["0,0"]);
 		},
